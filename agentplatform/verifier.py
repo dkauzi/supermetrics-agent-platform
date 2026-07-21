@@ -1,4 +1,4 @@
-"""Output verification — the gate between the model and any system of record.
+"""Output verification - the gate between the model and any system of record.
 
 The LLM is never trusted. Before anything is written to Salesforce or posted to
 Slack, the analysis passes through here.
@@ -10,7 +10,7 @@ into a deterministic comparison. No second LLM required, no extra cost, no
 non-determinism in the safety layer.
 
 A separate optional LLM judge scores the *writing* quality of the alert, which is
-genuinely subjective — that is the right division of labour.
+genuinely subjective - that is the right division of labour.
 """
 
 from __future__ import annotations

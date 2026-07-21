@@ -61,7 +61,7 @@ class Calibration:
     def _compute(self, rows: list[dict[str, Any]]) -> dict[str, DriverStats]:
         buckets: dict[str, list[str]] = {}
         for row in rows:
-            # 'unclear' verdicts carry no signal — excluded rather than counted
+            # 'unclear' verdicts carry no signal - excluded rather than counted
             # as wrong, which would bias every driver downward.
             if row["verdict"] == UNCLEAR:
                 continue
@@ -93,7 +93,7 @@ class Calibration:
         """Should this prediction be held for a human before it is asserted?"""
         stats = self._stats.get(driver)
         if stats is None:
-            return False, f"no outcome history for driver '{driver}' — treated as unproven"
+            return False, f"no outcome history for driver '{driver}' - treated as unproven"
         if stats.needs_review:
             return True, (
                 f"driver '{driver}' has been judged correct {stats.correct}/{stats.samples} "
@@ -108,7 +108,7 @@ class Calibration:
     def confidence_multiplier(self, driver: str) -> float:
         """Scale the model's self-reported confidence by measured precision.
 
-        Cold start returns 1.0 — we do not invent a penalty we cannot justify.
+        Cold start returns 1.0 - we do not invent a penalty we cannot justify.
         """
         stats = self._stats.get(driver)
         if stats is None or not stats.confident:

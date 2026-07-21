@@ -25,7 +25,7 @@ from .store import Warehouse
 class AgentContext:
     """Everything an agent is allowed to touch, handed to it explicitly.
 
-    Agents never import clients or config directly — they receive this. That keeps
+    Agents never import clients or config directly - they receive this. That keeps
     the blast radius of a platform change visible and testable.
     """
 
@@ -63,7 +63,7 @@ class EventBus:
         subscribers = self.registry.subscribers_of(event.event_type)
 
         if not subscribers:
-            # Not an error — but it must be visible, or events vanish quietly.
+            # Not an error - but it must be visible, or events vanish quietly.
             self.warehouse.dead_letter(
                 event.source,
                 f"no_subscriber_for_event_type:{event.event_type}",

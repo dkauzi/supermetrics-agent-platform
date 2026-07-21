@@ -27,7 +27,7 @@ SAMPLES = Path(__file__).parent.parent / "samples"
 
 @pytest.fixture
 def platform(tmp_path, monkeypatch):
-    """Isolated platform per test — no shared SQLite state between tests."""
+    """Isolated platform per test - no shared SQLite state between tests."""
     load_config.cache_clear()
     monkeypatch.setenv("LLM_MODE", "offline")
     monkeypatch.setenv("WAREHOUSE", "sqlite")

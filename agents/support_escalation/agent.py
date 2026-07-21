@@ -45,7 +45,7 @@ def handle(ctx) -> dict[str, Any]:
         return {"acted": False, "reason": reason, "summary": f"skipped: {reason}"}
 
     text = (
-        f"*Support escalation* — account {account_id}\n"
+        f"*Support escalation* - account {account_id}\n"
         f"{p1} P1 tickets in the last 30 days, CSAT {csat}, "
         f"{summary.get('open_tickets')} open tickets.\n"
         f"_Trace: {trace.trace_id}_"

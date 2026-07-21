@@ -1,4 +1,4 @@
-# Agent Registry — the master catalogue.
+# Agent Registry - the master catalogue.
 #
 # This file is the single source of truth for: what agents exist, what they do,
 # who owns them, which events wake them up, which tools they may touch, and when

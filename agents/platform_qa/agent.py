@@ -1,4 +1,4 @@
-"""Platform QA — the agent that audits the platform.
+"""Platform QA - the agent that audits the platform.
 
 Deliberately contains no LLM call. Every check here has a correct answer, and a
 model would only make a deterministic result probabilistic while costing money.
@@ -10,7 +10,7 @@ quietly failing over to fallback, and no churn driver drifting below its precisi
 floor. In production this runs on a schedule (Cloud Scheduler -> Pub/Sub) and
 posts a digest; the same checks gate CI.
 
-It runs on the same bus, with the same tracing, as every other agent — so the
+It runs on the same bus, with the same tracing, as every other agent - so the
 audit is itself auditable.
 """
 
@@ -77,7 +77,7 @@ def check_dead_letters(warehouse) -> list[Finding]:
     return [Finding(
         CRITICAL, "dead_letters",
         f"{len(letters)} events failed to process: {reasons}",
-        "python cli.py dlq — fix the normaliser or vendor payload, then replay",
+        "python cli.py dlq - fix the normaliser or vendor payload, then replay",
     )]
 
 
@@ -92,7 +92,7 @@ def check_eval_gate() -> list[Finding]:
         return [Finding(
             CRITICAL, "eval_gate",
             f"Golden eval FAILED for prompt {report['prompt_version']}: {report['failures']}",
-            "Roll back the prompt version in config — see docs/RUNBOOK.md",
+            "Roll back the prompt version in config - see docs/RUNBOOK.md",
         )]
     return []
 
@@ -124,7 +124,7 @@ def check_driver_precision(warehouse, config) -> list[Finding]:
         Finding(
             WARNING, "driver_precision",
             f"Driver '{stats['driver']}' precision {stats['precision']:.0%} "
-            f"over {stats['samples']} reviewed alerts — below the review floor",
+            f"over {stats['samples']} reviewed alerts - below the review floor",
             "Add cases to tests/golden/cases.json and revise the prompt; "
             "alerts are auto-flagged for human review meanwhile",
         )
@@ -182,7 +182,7 @@ def handle(ctx) -> dict[str, Any]:
              f"{len(checks)} checks · {len(criticals)} critical · {len(warnings)} warnings", ""]
     for finding in criticals + warnings:
         icon = ":red_circle:" if finding.severity == CRITICAL else ":warning:"
-        lines.append(f"{icon} *{finding.check}* — {finding.message}")
+        lines.append(f"{icon} *{finding.check}* - {finding.message}")
         lines.append(f"     _fix:_ {finding.fix}")
     if not findings:
         lines.append(":white_check_mark: Every agent owned, reviewed, and running clean.")

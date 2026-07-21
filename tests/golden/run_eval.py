@@ -1,4 +1,4 @@
-"""Golden eval set — the regression gate for prompt and model changes.
+"""Golden eval set - the regression gate for prompt and model changes.
 
 A prompt change is a production change. This is what stops one going live on a
 hunch. It runs the real analysis path (prompt -> model -> schema validation ->
@@ -14,7 +14,7 @@ Two properties make this useful rather than decorative:
     "is v3 better than v2?" and "is the cheap model good enough?" are the same
     command with one flag changed.
   * Offline it scores the deterministic fallback. That is the floor the LLM has
-    to beat — if the model cannot outscore rules-based logic, it is not worth
+    to beat - if the model cannot outscore rules-based logic, it is not worth
     its latency or its cost, and this prints that verdict plainly.
 
 CI runs this offline on every push. Before promoting a prompt, run it live.
@@ -139,7 +139,7 @@ def run_eval(platform, prompt_version: str | None = None) -> int:
     print("─" * 104)
     print(f"passed          {passed}/{total}")
     print(f"driver accuracy {driver_accuracy:.0%}")
-    print(f"grounding rate  {grounding_rate:.0%}   (must be 100% — an ungrounded claim is a defect, not a miss)")
+    print(f"grounding rate  {grounding_rate:.0%}   (must be 100% - an ungrounded claim is a defect, not a miss)")
     print(f"eval cost       ${cost:.4f}")
 
     min_accuracy = platform.config.get("eval.min_driver_accuracy", 0.6)
@@ -175,7 +175,7 @@ def run_eval(platform, prompt_version: str | None = None) -> int:
         print("Do not promote this prompt/model combination.")
         return 1
 
-    print("\nGATE PASSED — safe to promote.")
+    print("\nGATE PASSED - safe to promote.")
     return 0
 
 

@@ -1,4 +1,4 @@
-"""Severity and routing — deterministic, config-driven, and fully explainable.
+"""Severity and routing - deterministic, config-driven, and fully explainable.
 
 The LLM explains *why* an account is at risk. It does not decide *who gets woken
 up*. Blast radius is a business rule, so it lives in config and is evaluated by
@@ -143,11 +143,11 @@ def build_slack_message(account: dict[str, Any], facts: dict[str, Any], analysis
     owner_line = " ".join(decision.recipients) if decision.recipients else "unassigned"
 
     top_evidence = "\n".join(
-        f"  • {item.metric} = {item.value} — {item.interpretation}"
+        f"  • {item.metric} = {item.value} - {item.interpretation}"
         for item in analysis.evidence[:3]
     )
 
-    header = f"{mention} *{severity.level.upper()} renewal risk* — {account.get('name')}".strip()
+    header = f"{mention} *{severity.level.upper()} renewal risk* - {account.get('name')}".strip()
 
     body = [
         header,
@@ -166,7 +166,7 @@ def build_slack_message(account: dict[str, Any], facts: dict[str, Any], analysis
     ]
 
     if needs_review:
-        body += ["", f":warning: *Flagged for human verification* — {review_reason}"]
+        body += ["", f":warning: *Flagged for human verification* - {review_reason}"]
 
     body += ["", f"_Trace: {trace_id} · why: /traces/{trace_id}/why_"]
     return "\n".join(body)

@@ -1,4 +1,4 @@
-"""The Agent Registry — the master catalogue.
+"""The Agent Registry - the master catalogue.
 
 Nothing runs on this platform unless it is registered here with an owner. That is
 the rule that prevents the snowflake problem: undocumented agents nobody owns,

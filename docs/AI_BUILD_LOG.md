@@ -1,10 +1,10 @@
 # How I built this with a coding agent
 
-Built with **Claude Code**. I'm recording how I drove it because "used an AI agent" is not the interesting part — how you keep one honest is.
+Built with **Claude Code**. I'm recording how I drove it because "used an AI agent" is not the interesting part - how you keep one honest is.
 
 ## How I directed it
 
-I did not ask for "a renewal risk app." I specified the architecture first — platform layer, agent layer, the boundary between them — and had the agent implement against that shape. The decisions below were mine, and they're the ones that determine whether this is a demo or a platform:
+I did not ask for "a renewal risk app." I specified the architecture first - platform layer, agent layer, the boundary between them - and had the agent implement against that shape. The decisions below were mine, and they're the ones that determine whether this is a demo or a platform:
 
 - **Build the platform, not just the agent.** The brief describes one agent; the role owns the layer beneath. So the event bus, registry, tool layer and trace store came first, and the renewal agent was written as a consumer of them.
 - **Structured evidence, not prose.** My call, and the highest-leverage one. Because `EvidenceItem` is a metric/value pair, grounding is verified by comparison in `verifier.py` instead of by asking a second model to judge the first. Deterministic, free, and it can't itself hallucinate.
@@ -14,15 +14,15 @@ I did not ask for "a renewal risk app." I specified the architecture first — p
 
 ## Where I corrected it
 
-- The first pass had agents importing clients directly. I replaced it with an injected `AgentContext` plus tool grants from the registry, so an agent can only touch what it's declared — least privilege enforced by the platform, not by convention.
+- The first pass had agents importing clients directly. I replaced it with an injected `AgentContext` plus tool grants from the registry, so an agent can only touch what it's declared - least privilege enforced by the platform, not by convention.
 - The first schema let `driver` be a free string. I closed it to an enum for the reason above.
 - Naming the package `platform` shadowed a Python stdlib module. Renamed to `agentplatform`.
 - Pinned dependency versions forced source builds on Python 3.14. I moved to floors and forced wheels.
-- The generated fallback path originally swallowed LLM failures silently. I made every degradation write a `degraded_reason` to the trace — silent degradation is the failure mode that erodes trust in an agent platform fastest.
+- The generated fallback path originally swallowed LLM failures silently. I made every degradation write a `degraded_reason` to the trace - silent degradation is the failure mode that erodes trust in an agent platform fastest.
 
 ## What I did not delegate
 
-Test design. The suite is deliberately weighted toward failure paths — idempotency, non-retryable 4xx, ungrounded citations, cold-start calibration, golden-record merge semantics — because those are the assertions that encode intent. An agent will happily generate tests that pass against whatever the code currently does; that's how you get a green suite that guards nothing.
+Test design. The suite is deliberately weighted toward failure paths - idempotency, non-retryable 4xx, ungrounded citations, cold-start calibration, golden-record merge semantics - because those are the assertions that encode intent. An agent will happily generate tests that pass against whatever the code currently does; that's how you get a green suite that guards nothing.
 
 Same reason the golden eval set is hand-labelled. `ambiguous_must_not_guess` exists specifically to catch a confidently wrong answer, which is the failure mode that actually costs a CS team its trust in an agent.
 

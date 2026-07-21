@@ -42,7 +42,7 @@ def build_facts(account: dict[str, Any], health: dict[str, Any]) -> dict[str, An
     """Flatten everything we retrieved into one citable table.
 
     This dict is simultaneously the model's input, the verifier's source of truth
-    and the deterministic fallback's input. One representation, three consumers —
+    and the deterministic fallback's input. One representation, three consumers -
     so a claim can never be checked against different data than it was made on.
     """
     support = health.get("support", {}) or {}
@@ -98,7 +98,7 @@ def deterministic_analysis(facts: dict[str, Any]) -> ChurnAnalysis:
 
     This is not a toy: it is the floor of quality the agent guarantees when the
     LLM is unavailable, over budget, or produced ungrounded output. It is also the
-    baseline the golden eval measures the LLM against — if the model cannot beat
+    baseline the golden eval measures the LLM against - if the model cannot beat
     this, the model is not earning its cost.
     """
     def ev(metric: str, interpretation: str) -> EvidenceItem:
@@ -223,7 +223,7 @@ def analyse(ctx, account: dict[str, Any], facts: dict[str, Any],
         ctx.trace.record("llm_analysis", DEGRADED, degraded_reason=str(exc))
 
     # Grounding gate. An LLM analysis that cites facts we never retrieved is
-    # discarded outright — we do not "mostly trust" it.
+    # discarded outright - we do not "mostly trust" it.
     if analysis is not None:
         verification = verify_grounding(
             analysis.evidence, facts, ctx.trace,

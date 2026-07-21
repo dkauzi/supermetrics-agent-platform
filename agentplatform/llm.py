@@ -1,7 +1,7 @@
 """LLM access, shared by every agent.
 
 No agent calls OpenRouter directly. They call this, and get back a *validated
-Pydantic object* or an exception — never a raw string. That single rule is what
+Pydantic object* or an exception - never a raw string. That single rule is what
 stops hallucinated or malformed output from reaching Salesforce.
 
 What this layer owns:
@@ -40,7 +40,7 @@ FALLBACK_PRICE = (1.00, 3.00)
 class LLMUnavailable(RuntimeError):
     """Every model in the chain failed, or output never validated.
 
-    Callers must handle this by degrading to deterministic logic — never by
+    Callers must handle this by degrading to deterministic logic - never by
     dropping the work silently.
     """
 

@@ -3,7 +3,7 @@
 Every vendor call in the platform goes through `ToolClient.call`. Retries,
 backoff, idempotency, timeouts, failure classification and per-call trace logging
 live here exactly once. A vendor client subclass only implements the mapping from
-an operation name to a request — it inherits all the reliability behaviour.
+an operation name to a request - it inherits all the reliability behaviour.
 
 This is the "shared functions so updates are made once and fixed once" layer: when
 Salesforce changes an endpoint, one subclass method changes and every agent that

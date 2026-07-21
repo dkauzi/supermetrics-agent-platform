@@ -1,14 +1,14 @@
 """Warehouse layer: the queryable record of everything the platform did.
 
 Local runs use SQLite. Production uses BigQuery. Both satisfy the same interface,
-so agents and the observability layer never know which one is behind them —
+so agents and the observability layer never know which one is behind them -
 that is what makes "swap SQLite for BigQuery" a config change.
 
 Four tables, and the reason each exists:
-  events         — every trigger received, for idempotency and replay
-  run_steps      — every step of every agent run, for the "why" trace
-  golden_records — the account record this platform has write authority over
-  dead_letters   — anything we could not process, so nothing is ever silently lost
+  events         - every trigger received, for idempotency and replay
+  run_steps      - every step of every agent run, for the "why" trace
+  golden_records - the account record this platform has write authority over
+  dead_letters   - anything we could not process, so nothing is ever silently lost
 """
 
 from __future__ import annotations
@@ -315,7 +315,7 @@ class SQLiteWarehouse(Warehouse):
         return out
 
     def steps_named(self, step: str, limit: int = 100) -> list[dict[str, Any]]:
-        """All occurrences of one step across every run — for guardrail reporting."""
+        """All occurrences of one step across every run - for guardrail reporting."""
         with self._lock:
             rows = self._conn.execute(
                 """SELECT * FROM run_steps WHERE step = ? ORDER BY id DESC LIMIT ?""",

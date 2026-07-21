@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Agent Platform — Observability</title>
+<title>Agent Platform - Observability</title>
 <style>
   :root {
     --bg:#f6f7f9; --panel:#fff; --ink:#12161c; --muted:#5d6773; --line:#e3e7ec;
@@ -103,15 +103,15 @@
       </div>
 
       <div class="card">
-        <h2>Guardrails — what the safety net caught</h2>
+        <h2>Guardrails - what the safety net caught</h2>
         <div class="body" id="quality"></div>
         <div class="note">The LLM is never trusted directly. Ungrounded citations are rejected
-          and the deterministic analyser takes over — the human still gets alerted, and the
+          and the deterministic analyser takes over - the human still gets alerted, and the
           override is recorded here rather than hidden.</div>
       </div>
 
       <div class="card">
-        <h2>Learning loop — driver precision from human verdicts</h2>
+        <h2>Learning loop - driver precision from human verdicts</h2>
         <div class="body" id="calib"></div>
         <div class="note">Drivers below the review threshold are automatically flagged for
           human verification on the next run. This table is measured, never hand-set.</div>
@@ -143,7 +143,7 @@ async function loadAll(){
     ['Agents registered', reg.agent_count],
     ['Review overdue', reg.review_due_count],
     ['Reviewed alerts', cal.summary.reviewed_alerts],
-    ['Overall precision', cal.summary.overall_precision == null ? '—'
+    ['Overall precision', cal.summary.overall_precision == null ? '-'
         : Math.round(cal.summary.overall_precision*100)+'%'],
     ['Dead letters', dlq.dead_letters.length],
   ].map(([l,n]) => `<div class="stat"><div class="n">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join('');
@@ -181,9 +181,9 @@ async function loadAll(){
           <td class="tid">${esc(d.ts.slice(11,19))}</td>
         </tr>`).join('')}</table>
        <div class="note">“Guarded reject” means the platform correctly refused bad input at
-         the boundary and recorded why — the negative path working, not an incident.
+         the boundary and recorded why - the negative path working, not an incident.
          “Needs triage” is a real processing failure.</div>`
-    : '<div class="empty">Empty — nothing was dropped.</div>';
+    : '<div class="empty">Empty - nothing was dropped.</div>';
 
   $('calib').innerHTML = cal.drivers.length
     ? `<table><tr><th>Driver</th><th>Verdicts</th><th>Precision</th><th>Status</th></tr>${
@@ -233,7 +233,7 @@ function renderQuality(q){
       <tr><th>Eval case</th><th>Expected</th><th>Actual</th><th>Result</th></tr>
       ${e.cases.map(c => `<tr>
         <td class="tid">${esc(c.case)}${c.case === 'ambiguous_must_not_guess'
-          ? '<div class="muted" style="font-size:11px">negative case — must NOT guess a driver</div>' : ''}</td>
+          ? '<div class="muted" style="font-size:11px">negative case - must NOT guess a driver</div>' : ''}</td>
         <td class="tid">${esc(c.expected)}</td>
         <td class="tid">${esc(c.actual)}</td>
         <td><span class="pill ${c.passed?'ok':'err'}">${c.passed?'pass':'fail'}</span></td>
@@ -245,7 +245,7 @@ function renderQuality(q){
         <div class="txt">${r.violations.map(esc).join('<br>')}</div></div>`),
     ...q.recent_fallbacks.slice(0,4).map(f =>
       `<div class="why"><div class="rule">fallback → ${esc(f.trace_id)}</div>
-        <div class="txt">${esc(f.reason)} — alerted anyway as <b>${esc(f.driver)}</b></div></div>`)
+        <div class="txt">${esc(f.reason)} - alerted anyway as <b>${esc(f.driver)}</b></div></div>`)
   ].join('');
 
   $('quality').innerHTML = gate + cases + overrides
@@ -317,7 +317,7 @@ async function sendFeedback(verdict){
       verdict, reviewer:'dashboard'
     })
   });
-  $('fbmsg').textContent = res.ok ? 'Recorded — calibration updated.' : 'Failed to record.';
+  $('fbmsg').textContent = res.ok ? 'Recorded - calibration updated.' : 'Failed to record.';
   loadAll();
 }
 

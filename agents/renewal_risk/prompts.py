@@ -2,7 +2,7 @@
 
 Prompts are code: they live in version control, they are addressed by version, and
 rolling one back is a config change (`agents.renewal_risk.prompt_version`) rather
-than a redeploy. Every version is kept, never edited in place — editing v2 in
+than a redeploy. Every version is kept, never edited in place - editing v2 in
 place would silently invalidate every golden-eval result recorded against it.
 
 Promotion path: add v3 -> run `python cli.py eval --prompt-version v3` ->

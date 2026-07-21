@@ -1,7 +1,7 @@
 """The canonical event envelope and the vendor normalisers that produce it.
 
 Agents only ever see a normalised `Event`. When a vendor changes their webhook
-shape, the fix is one normaliser here — no agent is touched. That containment is
+shape, the fix is one normaliser here - no agent is touched. That containment is
 the whole point of having an event layer.
 """
 

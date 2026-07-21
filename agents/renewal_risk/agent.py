@@ -7,7 +7,7 @@ Reads top to bottom as the pipeline it is:
                   -> route -> notify
 
 Each stage is a small function or a traced block. The agent contains no retry
-logic, no logging boilerplate and no vendor specifics — those belong to the
+logic, no logging boilerplate and no vendor specifics - those belong to the
 platform, which is exactly why this file stays readable.
 """
 
@@ -27,7 +27,7 @@ AGENT_NAME = "renewal_risk"
 
 
 def _should_act(facts: dict[str, Any], triggers: dict[str, Any]) -> tuple[bool, str]:
-    """Entry gate. Returns (act, reason) — the reason is logged either way."""
+    """Entry gate. Returns (act, reason) - the reason is logged either way."""
     days = facts.get("days_to_renewal")
     score = facts.get("health_score")
     delta = facts.get("health_score_delta")
@@ -167,7 +167,7 @@ def handle(ctx) -> dict[str, Any]:
     trace.decision("routing", decision.rule_id, decision.because,
                    channel=decision.channel, recipients=decision.recipients, **decision.inputs)
 
-    # 8. Notify. A Slack failure must not lose the alert — it goes to the
+    # 8. Notify. A Slack failure must not lose the alert - it goes to the
     #    dead-letter table so it can be replayed.
     message = routing.build_slack_message(
         account, facts, analysis, severity, decision,

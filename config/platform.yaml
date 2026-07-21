@@ -47,7 +47,7 @@ verification:
   allow_unverifiable_claims: false
 
 # The learning loop. Thresholds for when measured precision starts overriding
-# the model's own confidence. Nothing here is a quality score we invented —
+# the model's own confidence. Nothing here is a quality score we invented -
 # these are only the sample sizes at which real outcomes take over.
 learning:
   min_samples: 5
@@ -57,7 +57,7 @@ learning:
 # Golden-eval gate. CI fails and a prompt is not promoted below these floors.
 eval:
   min_driver_accuracy: 0.6
-  # An ungrounded citation is a defect, not a miss — there is no acceptable rate.
+  # An ungrounded citation is a defect, not a miss - there is no acceptable rate.
   min_grounding_rate: 1.0
 
 agents:

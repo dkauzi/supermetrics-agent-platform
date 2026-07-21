@@ -1,6 +1,6 @@
 """Mocked vendor clients: Salesforce, Gainsight, Zendesk, Slack.
 
-These are mocks in the sense that they do not cross the network — but they hold a
+These are mocks in the sense that they do not cross the network - but they hold a
 realistic fixture dataset and honour the same interface, retry semantics and
 idempotency as the real thing would. Swapping in a real client means implementing
 `_execute` against the vendor SDK; no agent changes.

@@ -25,7 +25,7 @@ jobs:
 
       - name: Validate configuration and registry
         # Fails the build if the registry is malformed, an owner is missing, or a
-        # handler cannot be imported — the same checks that run at startup.
+        # handler cannot be imported - the same checks that run at startup.
         run: python cli.py registry
 
       - name: Tests
