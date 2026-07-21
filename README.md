@@ -1,6 +1,10 @@
 # Renewal Risk Analyser and Router
 
+[![CI](https://github.com/dkauzi/supermetrics-agent-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/dkauzi/supermetrics-agent-platform/actions/workflows/ci.yml)
+
 A renewal-risk agent, built as the **first agent on a shared platform** rather than a standalone script - because the brief describes one agent, but the role is owning the layer many agents plug into.
+
+Every push runs tests, the golden-eval gate, an end-to-end smoke run and the platform's own self-audit, on Python 3.11 through 3.13.
 
 ```bash
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
