@@ -67,18 +67,57 @@ def check_review_cadence(registry) -> list[Finding]:
     ]
 
 
+# Rejections the platform is designed to make. These mean the boundary did its
+# job, not that something broke. Single source of truth: the dashboard renders
+# the same split, so "what counts as a problem" has exactly one definition.
+GUARDED_REJECTIONS = (
+    "unknown_source",
+    "missing_account_id",
+    "no_subscriber_for_event_type",
+)
+
+
+def is_guarded_rejection(reason: str) -> bool:
+    return reason.startswith(GUARDED_REJECTIONS)
+
+
 def check_dead_letters(warehouse) -> list[Finding]:
+    """Distinguish input we correctly refused from work we failed to do.
+
+    A malformed payload rejected at the boundary is the negative path working.
+    Treating it as an incident trains people to ignore the alert, which is how
+    a real failure gets missed.
+    """
     letters = warehouse.dead_letters(200)
     if not letters:
         return []
-    reasons: dict[str, int] = {}
+
+    failures, guarded = [], []
     for letter in letters:
-        reasons[letter["reason"].split(":")[0]] = reasons.get(letter["reason"].split(":")[0], 0) + 1
-    return [Finding(
-        CRITICAL, "dead_letters",
-        f"{len(letters)} events failed to process: {reasons}",
-        "python cli.py dlq - fix the normaliser or vendor payload, then replay",
-    )]
+        (guarded if is_guarded_rejection(letter["reason"]) else failures).append(letter)
+
+    findings = []
+    if failures:
+        reasons: dict[str, int] = {}
+        for letter in failures:
+            key = letter["reason"].split(":")[0]
+            reasons[key] = reasons.get(key, 0) + 1
+        findings.append(Finding(
+            CRITICAL, "dead_letters",
+            f"{len(failures)} events failed to process: {reasons}",
+            "python cli.py dlq - fix the normaliser or vendor payload, then replay",
+        ))
+
+    if guarded:
+        findings.append(Finding(
+            INFO, "guarded_rejections",
+            f"{len(guarded)} payloads correctly refused at the boundary "
+            f"(unknown source, missing account id, or no subscriber)",
+            "No action needed. Investigate only if the volume is unexpected, "
+            "which would suggest a vendor changed a payload shape.",
+        ))
+
+    return findings
 
 
 def check_eval_gate() -> list[Finding]:
@@ -169,19 +208,22 @@ def handle(ctx) -> dict[str, Any]:
 
     criticals = [f for f in findings if f.severity == CRITICAL]
     warnings = [f for f in findings if f.severity == WARNING]
+    infos = [f for f in findings if f.severity == INFO]
 
     verdict = "FAIL" if criticals else "WARN" if warnings else "PASS"
     trace.decision(
         "platform_health", f"audit_{verdict.lower()}",
-        f"Platform audit {verdict}: {len(criticals)} critical, {len(warnings)} warnings "
-        f"across {len(checks)} checks",
-        critical=len(criticals), warnings=len(warnings), checks=len(checks),
+        f"Platform audit {verdict}: {len(criticals)} critical, {len(warnings)} warnings, "
+        f"{len(infos)} informational across {len(checks)} checks",
+        critical=len(criticals), warnings=len(warnings),
+        info=len(infos), checks=len(checks),
     )
 
     lines = [f"*Platform audit: {verdict}*",
              f"{len(checks)} checks · {len(criticals)} critical · {len(warnings)} warnings", ""]
-    for finding in criticals + warnings:
-        icon = ":red_circle:" if finding.severity == CRITICAL else ":warning:"
+    for finding in criticals + warnings + infos:
+        icon = {CRITICAL: ":red_circle:", WARNING: ":warning:"}.get(
+            finding.severity, ":information_source:")
         lines.append(f"{icon} *{finding.check}* - {finding.message}")
         lines.append(f"     _fix:_ {finding.fix}")
     if not findings:
@@ -201,7 +243,7 @@ def handle(ctx) -> dict[str, Any]:
 
     return {
         "acted": True, "verdict": verdict,
-        "critical": len(criticals), "warnings": len(warnings),
+        "critical": len(criticals), "warnings": len(warnings), "info": len(infos),
         "findings": [f.as_dict() for f in findings],
         "summary": f"platform audit {verdict}: "
                    f"{len(criticals)} critical, {len(warnings)} warnings",

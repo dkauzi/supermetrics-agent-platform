@@ -433,13 +433,37 @@ def test_platform_qa_passes_on_a_clean_platform(platform, monkeypatch, tmp_path)
     assert payload["critical"] == 0
 
 
-def test_platform_qa_flags_dead_letters_as_critical(platform):
+def test_platform_qa_flags_real_processing_failures_as_critical(platform):
     platform.warehouse.dead_letter("gainsight", "normalisation_failed: boom", {})
     result = platform.ingest("platform", {"eventId": "audit-dlq"})
     payload = result["results"][0]["result"]
     assert payload["verdict"] == "FAIL"
     assert any(f["check"] == "dead_letters" and f["severity"] == "critical"
                for f in payload["findings"])
+
+
+def test_guarded_rejections_are_not_treated_as_incidents(platform):
+    # Input we correctly refused at the boundary is the negative path working.
+    # Paging on it trains people to ignore the alert, which is how a real
+    # failure gets missed.
+    platform.warehouse.dead_letter("hubspot", "unknown_source: no normaliser", {})
+    platform.warehouse.dead_letter("gainsight", "missing_account_id", {})
+
+    result = platform.ingest("platform", {"eventId": "audit-guarded"})
+    payload = result["results"][0]["result"]
+
+    assert payload["critical"] == 0
+    assert payload["verdict"] != "FAIL"
+    assert any(f["check"] == "guarded_rejections" for f in payload["findings"])
+
+
+def test_dashboard_and_audit_share_one_definition_of_a_problem(platform):
+    from agents.platform_qa.agent import is_guarded_rejection
+    assert is_guarded_rejection("unknown_source: no normaliser for 'hubspot'")
+    assert is_guarded_rejection("missing_account_id")
+    assert is_guarded_rejection("no_subscriber_for_event_type:foo.bar")
+    assert not is_guarded_rejection("normalisation_failed: boom")
+    assert not is_guarded_rejection("agent_raised:renewal_risk:ValueError")
 
 
 def test_platform_qa_flags_unowned_agent(platform):

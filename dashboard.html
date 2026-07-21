@@ -173,23 +173,20 @@ async function loadAll(){
           <div class="tid">${a.days_since_review}d ago</div></td>
     </tr>`).join('')}</table>`;
 
-  // Rejections the platform is designed to make are distinguished from genuine
-  // processing failures. Both are visible; only one needs someone paged.
-  const GUARDED = ['unknown_source', 'missing_account_id', 'no_subscriber_for_event_type'];
-  const isGuarded = r => GUARDED.some(g => r.startsWith(g));
-
+  // The guarded/triage split is computed server side by the same function the
+  // platform_qa agent uses, so this view cannot drift from the audit's verdict.
   $('dlq').innerHTML = dlq.dead_letters.length
     ? `<table><tr><th>Source</th><th>Reason</th><th>Type</th><th>When</th></tr>${
         dlq.dead_letters.map(d => `<tr>
           <td>${esc(d.source)}</td>
           <td class="tid">${esc(d.reason)}</td>
-          <td><span class="pill ${isGuarded(d.reason)?'ok':'err'}">${
-            isGuarded(d.reason) ? 'guarded reject' : 'needs triage'}</span></td>
+          <td><span class="pill ${d.guarded?'ok':'err'}">${
+            d.guarded ? 'guarded reject' : 'needs triage'}</span></td>
           <td class="tid">${esc(d.ts.slice(11,19))}</td>
         </tr>`).join('')}</table>
-       <div class="note">“Guarded reject” means the platform correctly refused bad input at
-         the boundary and recorded why - the negative path working, not an incident.
-         “Needs triage” is a real processing failure.</div>`
+       <div class="note">${dlq.needs_triage} needing triage, ${dlq.guarded_rejections}
+         guarded. A guarded reject means the platform correctly refused bad input at the
+         boundary and recorded why: the negative path working, not an incident.</div>`
     : '<div class="empty">Empty - nothing was dropped.</div>';
 
   $('calib').innerHTML = cal.drivers.length

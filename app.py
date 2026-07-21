@@ -23,6 +23,7 @@ from agentplatform import build_platform
 from agentplatform.config import data_dir
 from agentplatform.events import UnknownEventSource
 from agentplatform.feedback import Calibration, record_outcome
+from agents.platform_qa.agent import is_guarded_rejection
 
 app = FastAPI(title="Supermetrics Agent Platform", version="1.0.0")
 platform = build_platform()
@@ -218,8 +219,23 @@ def quality() -> dict[str, Any]:
 
 @app.get("/dead-letters")
 def dead_letters(limit: int = 50) -> dict[str, Any]:
-    """Everything the platform could not process. Should normally be empty."""
-    return {"dead_letters": platform.warehouse.dead_letters(limit)}
+    """Everything that did not flow through, split by whether it is our problem.
+
+    A payload refused at the boundary is the negative path working; a payload we
+    failed to process is an incident. The classification comes from the same
+    function the platform_qa agent uses, so there is one definition of "problem"
+    rather than one per consumer.
+    """
+    letters = platform.warehouse.dead_letters(limit)
+    classified = [
+        {**letter, "guarded": is_guarded_rejection(letter["reason"])}
+        for letter in letters
+    ]
+    return {
+        "dead_letters": classified,
+        "needs_triage": sum(1 for letter in classified if not letter["guarded"]),
+        "guarded_rejections": sum(1 for letter in classified if letter["guarded"]),
+    }
 
 
 @app.get("/calibration")
