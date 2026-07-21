@@ -311,6 +311,47 @@ def test_golden_record_merges_rather_than_overwrites(platform):
     assert record["revision"] == 2
 
 
+# ── Platform QA agent ──────────────────────────────────────────────────────────
+
+def test_platform_qa_passes_on_a_clean_platform(platform, monkeypatch, tmp_path):
+    from agents.platform_qa import agent as qa
+    monkeypatch.setattr(qa, "check_review_cadence", lambda registry: [])
+    monkeypatch.setattr(qa, "check_eval_gate", lambda: [])
+
+    result = platform.ingest("platform", {"eventId": "audit-clean"})
+    payload = result["results"][0]["result"]
+    assert payload["verdict"] == "PASS"
+    assert payload["critical"] == 0
+
+
+def test_platform_qa_flags_dead_letters_as_critical(platform):
+    platform.warehouse.dead_letter("gainsight", "normalisation_failed: boom", {})
+    result = platform.ingest("platform", {"eventId": "audit-dlq"})
+    payload = result["results"][0]["result"]
+    assert payload["verdict"] == "FAIL"
+    assert any(f["check"] == "dead_letters" and f["severity"] == "critical"
+               for f in payload["findings"])
+
+
+def test_platform_qa_flags_unowned_agent(platform):
+    from agents.platform_qa.agent import check_ownership
+
+    entry = platform.registry.get("renewal_risk").model_copy(update={"owner_slack": ""})
+
+    class _Reg:
+        def all(self): return [entry]
+
+    findings = check_ownership(_Reg())
+    assert findings and findings[0].severity == "critical"
+
+
+def test_platform_qa_audit_is_itself_traced(platform):
+    result = platform.ingest("platform", {"eventId": "audit-traced"})
+    explanation = platform.observability.explain(result["results"][0]["trace_id"])
+    # The audit must be as explainable as the agents it audits.
+    assert any(d["rule_id"].startswith("audit_") for d in explanation["decisions"])
+
+
 def _trace(platform):
     from agentplatform.events import Event
     event = Event(event_id=f"t-{datetime.now(timezone.utc).timestamp()}",

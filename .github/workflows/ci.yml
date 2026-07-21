@@ -43,3 +43,11 @@ jobs:
         env:
           LLM_MODE: offline
         run: python runner.py
+
+      - name: Platform self-audit
+        # The platform_qa agent checks ownership, review cadence, eval gate and
+        # DLQ depth. Non-zero exit on any critical finding, so the contract the
+        # platform claims to enforce is enforced in CI too.
+        env:
+          LLM_MODE: offline
+        run: python cli.py audit

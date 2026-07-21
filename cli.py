@@ -148,6 +148,31 @@ def cmd_calibration(platform, args) -> int:
     return 0
 
 
+def cmd_audit(platform, args) -> int:
+    """Run the platform QA agent. Exit code doubles as a CI health gate."""
+    from datetime import datetime, timezone
+
+    result = platform.ingest("platform", {
+        "eventId": f"audit-{datetime.now(timezone.utc).isoformat()}",
+        "eventType": "platform.audit_requested",
+    })
+    if not result["results"]:
+        print("platform_qa is not registered or not enabled")
+        return 1
+
+    payload = result["results"][0]["result"]
+    print(f"\nPlatform audit: {payload['verdict']}  "
+          f"({payload['critical']} critical, {payload['warnings']} warnings)\n")
+    for finding in payload["findings"]:
+        print(f"  [{finding['severity'].upper():<8}] {finding['check']}")
+        print(f"      {finding['message']}")
+        print(f"      fix: {finding['fix']}\n")
+    if not payload["findings"]:
+        print("  Every agent owned, reviewed, and running clean.\n")
+    print(f"  trace: {result['results'][0]['trace_id']}\n")
+    return 1 if payload["critical"] else 0
+
+
 def cmd_eval(platform, args) -> int:
     from tests.golden.run_eval import run_eval
     return run_eval(platform, prompt_version=args.prompt_version)
@@ -187,6 +212,8 @@ def main() -> int:
     calib = sub.add_parser("calibration")
     calib.add_argument("--agent", default="renewal_risk")
     calib.set_defaults(func=cmd_calibration)
+
+    sub.add_parser("audit").set_defaults(func=cmd_audit)
 
     evaluate = sub.add_parser("eval")
     evaluate.add_argument("--prompt-version", default=None)

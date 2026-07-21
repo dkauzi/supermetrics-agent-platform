@@ -38,9 +38,10 @@ My test before shipping: *if a vendor changes something or a number moves, do I 
 
 1. `GET /traces/{id}/why` — plain-English narrative naming **the rule that fired and the values it matched on**. Built for a CS lead, not an engineer.
 2. `GET /accounts/{id}/audit` — every decision ever made about that account, plus human verdicts.
-3. `GET /dead-letters` — anything that didn't process. Should be empty.
-4. `python cli.py replay <trace_id>` — re-run the original event against current code to verify a fix.
-5. `GET /registry` — who owns this agent and when it was last reviewed.
+3. `GET /quality` — what the guardrails caught: eval-gate status, grounding rejections, fallback rate.
+4. `GET /dead-letters` — anything that didn't process. Should be empty.
+5. `python cli.py replay <trace_id>` — re-run the original event against current code to verify a fix.
+6. `python cli.py audit` — the `platform_qa` agent checks the platform against its own contract (every agent owned and reviewed, DLQ empty, eval gate green, fallback rate sane, no driver below its precision floor). Non-zero exit on critical, so it doubles as a CI gate.
 
 Skipped runs are logged with their reason too, so *"why did nothing happen?"* is as answerable as *"why did this happen?"*
 
@@ -56,4 +57,6 @@ Then, in order: SQLite → BigQuery (interface already exists, `store.py`); cach
 - [docs/RUNBOOK.md](docs/RUNBOOK.md) — prompt rollback, on-call procedures
 - [docs/AI_BUILD_LOG.md](docs/AI_BUILD_LOG.md) — how I drove the coding agent
 
-`pytest -q` → 28 tests, weighted to failure paths. `python cli.py eval` → golden eval gate.
+**Three agents on one bus:** `renewal_risk` (the brief), `support_escalation` (proves onboarding an agent touches no existing agent), `platform_qa` (audits the platform itself — deliberately no LLM, since every check has a correct answer).
+
+`pytest -q` → 32 tests, weighted to failure paths. `python cli.py eval` → golden eval gate.

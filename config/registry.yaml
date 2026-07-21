@@ -53,3 +53,25 @@ agents:
     last_reviewed: "2026-01-10"
     review_interval_days: 90
     enabled: true
+
+  # The platform auditing itself, on the same bus as everything else. In
+  # production this is triggered on a schedule; locally, `python cli.py audit`.
+  - name: platform_qa
+    version: "1.0.0"
+    description: >
+      Audits the platform against its own contract: every agent owned and reviewed
+      on schedule, dead-letter queue empty, golden-eval gate green, LLM fallback
+      rate within bounds, and no churn driver below its precision floor.
+    owner: denis.miano
+    owner_email: denis.miano@supermetrics.com
+    owner_slack: "@denis"
+    team: platform
+    handler: agents.platform_qa.agent:handle
+    subscribes_to:
+      - platform.audit_requested
+    tools:
+      - slack
+    writes_golden_record: false
+    last_reviewed: "2026-07-21"
+    review_interval_days: 30
+    enabled: true

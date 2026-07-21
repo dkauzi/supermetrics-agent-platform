@@ -151,6 +151,23 @@ def run_eval(platform, prompt_version: str | None = None) -> int:
     if grounding_rate < min_grounding:
         failures.append(f"grounding rate {grounding_rate:.0%} below floor {min_grounding:.0%}")
 
+    # Persist the verdict so the dashboard can show the gate status without
+    # anyone having to re-run the eval or read CI logs.
+    from agentplatform.config import data_dir
+    (data_dir() / "last_eval.json").write_text(json.dumps({
+        "ran_at": datetime.now(timezone.utc).isoformat(),
+        "prompt_version": active_version,
+        "mode": mode,
+        "models": platform.config.get("llm.model_chain"),
+        "passed": passed, "total": total,
+        "driver_accuracy": round(driver_accuracy, 3),
+        "grounding_rate": round(grounding_rate, 3),
+        "cost_usd": round(cost, 5),
+        "gate_passed": not failures,
+        "failures": failures,
+        "cases": results,
+    }, indent=2))
+
     if failures:
         print("\nGATE FAILED:")
         for failure in failures:

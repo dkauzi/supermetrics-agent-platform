@@ -35,6 +35,8 @@ class AgentContext:
     warehouse: Warehouse
     config: Config
     entry: AgentEntry
+    # The catalogue itself, so platform-level agents can audit the registry.
+    registry: AgentRegistry
 
     def agent_config(self, path: str, default: Any = None) -> Any:
         """Config scoped to this agent, e.g. ctx.agent_config('routing.rules')."""
@@ -96,6 +98,7 @@ class EventBus:
             warehouse=self.warehouse,
             config=self.config,
             entry=entry,
+            registry=self.registry,
         )
 
         try:

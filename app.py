@@ -12,6 +12,7 @@ routes and a UI, not a log file and a grep.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from agentplatform import build_platform
+from agentplatform.config import data_dir
 from agentplatform.events import UnknownEventSource
 from agentplatform.feedback import Calibration, record_outcome
 
@@ -136,6 +138,57 @@ def account_audit(account_id: str) -> dict[str, Any]:
         "golden_record": platform.warehouse.get_golden_record(account_id),
         "run_count": len(entries),
         "history": entries,
+    }
+
+
+@app.get("/quality")
+def quality() -> dict[str, Any]:
+    """What the guardrails caught, and the state of the eval gate.
+
+    Two things a platform owner needs at a glance and cannot get from a log:
+    how often the model had to be overruled, and whether the current prompt is
+    still passing its regression set. Both are evidence the safety net is load
+    bearing rather than decorative.
+    """
+    eval_file = data_dir() / "last_eval.json"
+    last_eval = json.loads(eval_file.read_text()) if eval_file.exists() else None
+
+    # Every analysis step records which method actually produced the result.
+    analyses = platform.warehouse.steps_named("analyse", limit=500)
+    fallbacks = [
+        {
+            "trace_id": step["trace_id"], "ts": step["ts"],
+            "reason": (step["detail"] or {}).get("degraded_reason"),
+            "driver": (step["detail"] or {}).get("driver"),
+            "why_url": f"/traces/{step['trace_id']}/why",
+        }
+        for step in analyses
+        if (step["detail"] or {}).get("method") == "deterministic_fallback"
+    ]
+
+    # Grounding verification that rejected a model's citations.
+    verifications = platform.warehouse.steps_named("verify_grounding", limit=500)
+    caught = [
+        {
+            "trace_id": step["trace_id"], "ts": step["ts"],
+            "violations": (step["detail"] or {}).get("violations", []),
+            "grounding_rate": (step["detail"] or {}).get("grounding_rate"),
+            "why_url": f"/traces/{step['trace_id']}/why",
+        }
+        for step in verifications if not (step["detail"] or {}).get("passed", True)
+    ]
+
+    total = len(analyses)
+    return {
+        "eval": last_eval,
+        "analysis_runs": total,
+        "llm_runs": total - len(fallbacks),
+        "fallback_runs": len(fallbacks),
+        "fallback_rate": round(len(fallbacks) / total, 3) if total else 0.0,
+        "grounding_checks": len(verifications),
+        "grounding_rejections": len(caught),
+        "recent_fallbacks": fallbacks[:10],
+        "recent_grounding_rejections": caught[:10],
     }
 
 

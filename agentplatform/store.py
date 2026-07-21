@@ -134,6 +134,9 @@ class Warehouse(ABC):
     @abstractmethod
     def traces_for_account(self, account_id: str) -> list[dict[str, Any]]: ...
 
+    @abstractmethod
+    def steps_named(self, step: str, limit: int = 100) -> list[dict[str, Any]]: ...
+
 
 class SQLiteWarehouse(Warehouse):
     """Local implementation. Same interface as BigQuery, no external dependency."""
@@ -311,6 +314,15 @@ class SQLiteWarehouse(Warehouse):
             out.append(record)
         return out
 
+    def steps_named(self, step: str, limit: int = 100) -> list[dict[str, Any]]:
+        """All occurrences of one step across every run — for guardrail reporting."""
+        with self._lock:
+            rows = self._conn.execute(
+                """SELECT * FROM run_steps WHERE step = ? ORDER BY id DESC LIMIT ?""",
+                (step, limit),
+            ).fetchall()
+        return [self._step_row(r) for r in rows]
+
     def traces_for_account(self, account_id: str) -> list[dict[str, Any]]:
         with self._lock:
             rows = self._conn.execute(
@@ -394,6 +406,7 @@ class BigQueryWarehouse(Warehouse):
     def record_outcome(self, row: dict[str, Any]) -> None: ...
     def outcomes(self, agent: str | None = None) -> list[dict[str, Any]]: ...
     def traces_for_account(self, account_id: str) -> list[dict[str, Any]]: ...
+    def steps_named(self, step: str, limit: int = 100) -> list[dict[str, Any]]: ...
 
 
 def build_warehouse(config: Config) -> Warehouse:

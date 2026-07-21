@@ -93,10 +93,28 @@ def normalise_zendesk(payload: dict[str, Any]) -> Event:
     )
 
 
+def normalise_platform(payload: dict[str, Any]) -> Event:
+    """Internal trigger, e.g. the scheduled platform audit.
+
+    The platform is a first-class event source: self-checks arrive on the same bus
+    as vendor events and are traced identically. An audit that ran outside the
+    observability layer would be an audit nobody could audit.
+    """
+    return Event(
+        event_id=payload.get("eventId") or _fallback_event_id("platform", payload),
+        event_type=payload.get("eventType", "platform.audit_requested"),
+        source="platform",
+        account_id=payload.get("accountId", "PLATFORM"),
+        occurred_at=payload.get("triggeredAt") or datetime.now(timezone.utc),
+        payload=payload,
+    )
+
+
 NORMALISERS: dict[str, Callable[[dict[str, Any]], Event]] = {
     "gainsight": normalise_gainsight,
     "salesforce": normalise_salesforce,
     "zendesk": normalise_zendesk,
+    "platform": normalise_platform,
 }
 
 

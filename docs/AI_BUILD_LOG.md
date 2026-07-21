@@ -28,4 +28,6 @@ Same reason the golden eval set is hand-labelled. `ambiguous_must_not_guess` exi
 
 ## Verification
 
-Everything in this repo was executed, not assumed: 28 tests passing, five end-to-end scenarios via `runner.py`, and the golden eval gate at 5/5 with 100% grounding.
+Everything in this repo was executed, not assumed: 32 tests passing, five end-to-end scenarios via `runner.py`, the golden eval gate at 5/5 with 100% grounding, and the platform self-audit correctly failing on a deliberately dirty state.
+
+One more decision worth naming: when I added the QA agent, the obvious move was an LLM judging other agents' output. I didn't. Grounding is already verified by comparison, and every remaining check (is this agent owned? is the DLQ empty? is the eval gate green?) has a correct answer. Putting a model in the safety path would have made a deterministic result probabilistic and charged me for the privilege. Knowing where *not* to use the model is most of the job.

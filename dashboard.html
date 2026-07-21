@@ -103,6 +103,14 @@
       </div>
 
       <div class="card">
+        <h2>Guardrails — what the safety net caught</h2>
+        <div class="body" id="quality"></div>
+        <div class="note">The LLM is never trusted directly. Ungrounded citations are rejected
+          and the deterministic analyser takes over — the human still gets alerted, and the
+          override is recorded here rather than hidden.</div>
+      </div>
+
+      <div class="card">
         <h2>Learning loop — driver precision from human verdicts</h2>
         <div class="body" id="calib"></div>
         <div class="note">Drivers below the review threshold are automatically flagged for
@@ -121,9 +129,11 @@ let selected = null, lastWhy = null;
 function statusClass(s){ return s==='error'?'err':s==='degraded'?'deg':s==='skipped'?'warn':'ok'; }
 
 async function loadAll(){
-  const [runs, reg, dlq, cal] = await Promise.all([
-    get('/traces?limit=40'), get('/registry'), get('/dead-letters?limit=20'), get('/calibration')
+  const [runs, reg, dlq, cal, qual] = await Promise.all([
+    get('/traces?limit=40'), get('/registry'), get('/dead-letters?limit=20'),
+    get('/calibration'), get('/quality')
   ]);
+  renderQuality(qual);
 
   const totalRuns = runs.traces.length;
   const errored = runs.traces.filter(t => t.errors > 0).length;
@@ -156,10 +166,23 @@ async function loadAll(){
           <div class="tid">${a.days_since_review}d ago</div></td>
     </tr>`).join('')}</table>`;
 
+  // Rejections the platform is designed to make are distinguished from genuine
+  // processing failures. Both are visible; only one needs someone paged.
+  const GUARDED = ['unknown_source', 'missing_account_id', 'no_subscriber_for_event_type'];
+  const isGuarded = r => GUARDED.some(g => r.startsWith(g));
+
   $('dlq').innerHTML = dlq.dead_letters.length
-    ? `<table><tr><th>Source</th><th>Reason</th><th>When</th></tr>${dlq.dead_letters.map(d =>
-        `<tr><td>${esc(d.source)}</td><td class="tid">${esc(d.reason)}</td>
-             <td class="tid">${esc(d.ts.slice(11,19))}</td></tr>`).join('')}</table>`
+    ? `<table><tr><th>Source</th><th>Reason</th><th>Type</th><th>When</th></tr>${
+        dlq.dead_letters.map(d => `<tr>
+          <td>${esc(d.source)}</td>
+          <td class="tid">${esc(d.reason)}</td>
+          <td><span class="pill ${isGuarded(d.reason)?'ok':'err'}">${
+            isGuarded(d.reason) ? 'guarded reject' : 'needs triage'}</span></td>
+          <td class="tid">${esc(d.ts.slice(11,19))}</td>
+        </tr>`).join('')}</table>
+       <div class="note">“Guarded reject” means the platform correctly refused bad input at
+         the boundary and recorded why — the negative path working, not an incident.
+         “Needs triage” is a real processing failure.</div>`
     : '<div class="empty">Empty — nothing was dropped.</div>';
 
   $('calib').innerHTML = cal.drivers.length
@@ -175,6 +198,58 @@ async function loadAll(){
               d.needs_review?'force review':d.trusted?'trusted':'unproven'}</span></td>
           </tr>`;}).join('')}</table>`
     : '<div class="empty">No verdicts recorded yet. Mark a run correct or wrong to start the loop.</div>';
+}
+
+function renderQuality(q){
+  const e = q.eval;
+  const gate = !e ? `<div class="empty">No eval recorded. Run <code>python cli.py eval</code>.</div>`
+    : `<table>
+        <tr><th>Eval gate</th><th>Prompt</th><th>Accuracy</th><th>Grounding</th><th>Cost</th></tr>
+        <tr>
+          <td><span class="pill ${e.gate_passed?'ok':'err'}">${e.gate_passed?'PASSED':'FAILED'}</span>
+              <div class="tid">${e.passed}/${e.total} cases · ${esc(e.mode)}</div></td>
+          <td class="tid">${esc(e.prompt_version)}</td>
+          <td>${Math.round(e.driver_accuracy*100)}%</td>
+          <td>${Math.round(e.grounding_rate*100)}%</td>
+          <td class="tid">$${e.cost_usd.toFixed(4)}</td>
+        </tr>
+       </table>
+       ${e.failures.length ? `<div class="narr err">${e.failures.map(esc).join('<br>')}</div>` : ''}`;
+
+  const overrides = `<table>
+      <tr><th>Model overruled</th><th>Count</th><th>Detail</th></tr>
+      <tr><td>Ungrounded citations rejected</td>
+          <td><span class="pill ${q.grounding_rejections?'warn':'ok'}">${q.grounding_rejections}</span></td>
+          <td class="tid">of ${q.grounding_checks} verification checks</td></tr>
+      <tr><td>Fell back to deterministic analyser</td>
+          <td><span class="pill ${q.fallback_runs?'deg':'ok'}">${q.fallback_runs}</span></td>
+          <td class="tid">${Math.round(q.fallback_rate*100)}% of ${q.analysis_runs} runs</td></tr>
+    </table>`;
+
+  // Case-level eval detail. `ambiguous_must_not_guess` is the important row:
+  // it is designed to catch a confidently wrong answer, so a PASS there means
+  // the model correctly declined to guess rather than that nothing was tested.
+  const cases = !e ? '' : `<table>
+      <tr><th>Eval case</th><th>Expected</th><th>Actual</th><th>Result</th></tr>
+      ${e.cases.map(c => `<tr>
+        <td class="tid">${esc(c.case)}${c.case === 'ambiguous_must_not_guess'
+          ? '<div class="muted" style="font-size:11px">negative case — must NOT guess a driver</div>' : ''}</td>
+        <td class="tid">${esc(c.expected)}</td>
+        <td class="tid">${esc(c.actual)}</td>
+        <td><span class="pill ${c.passed?'ok':'err'}">${c.passed?'pass':'fail'}</span></td>
+      </tr>`).join('')}
+    </table>`;
+
+  const recent = [...q.recent_grounding_rejections.map(r =>
+      `<div class="why"><div class="rule">grounding rejected → ${esc(r.trace_id)}</div>
+        <div class="txt">${r.violations.map(esc).join('<br>')}</div></div>`),
+    ...q.recent_fallbacks.slice(0,4).map(f =>
+      `<div class="why"><div class="rule">fallback → ${esc(f.trace_id)}</div>
+        <div class="txt">${esc(f.reason)} — alerted anyway as <b>${esc(f.driver)}</b></div></div>`)
+  ].join('');
+
+  $('quality').innerHTML = gate + cases + overrides
+    + (recent ? `<div style="padding:4px 0">${recent}</div>` : '');
 }
 
 async function showWhy(traceId){
