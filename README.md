@@ -18,7 +18,11 @@ cp .env.example .env          # add OPENROUTER_API_KEY (runs without one, in off
 
 ## Dashboard
 
-Runs locally at **http://127.0.0.1:8000** after `uvicorn app:app`. Nothing is deployed, per the brief. Five panels, each answering a question someone actually asks:
+**[Live snapshot →](https://dkauzi.github.io/supermetrics-agent-platform/)** - a read-only capture of a real local run, so you can see it without cloning anything.
+
+The working dashboard runs locally at **http://127.0.0.1:8000** after `uvicorn app:app`. Nothing is deployed to run the app, per the brief; the published page is the same file with captured API responses inlined, which is why it cannot drift from the real one. Opening `dashboard.html` directly from disk shows an empty page by design, since it needs the backend.
+
+Panels, each answering a question someone actually asks:
 
 | Panel | Question it answers |
 |---|---|
@@ -26,6 +30,7 @@ Runs locally at **http://127.0.0.1:8000** after `uvicorn app:app`. Nothing is de
 | **Why did this agent do that?** | Plain-English narrative of one run, naming the rule that fired and the values it matched. Built for a CS lead, not an engineer. |
 | Agent registry | What agents exist, who owns them, which are overdue for review? |
 | Integrations | What reliability policy wraps each vendor, and is any circuit open? |
+| Cost and runaway protection | Spend against budget, cost per analysis, and which runs were throttled to a human instead of billed again. |
 | Guardrails | Eval-gate status, per-case results, ungrounded citations rejected, fallback rate. |
 | Learning loop | Measured precision per churn driver, from human verdicts. Mark a run correct or wrong and the next run's confidence changes. |
 
@@ -53,6 +58,9 @@ Also available headless, for the 2am case where you do not want a browser:
 | Account owner can't be resolved | Falls back to a monitoring channel. An alert is never silently dropped. |
 | Agent raises | Isolated - other agents on the same event still run. |
 | Model is confidently wrong over time | Human verdicts feed a calibration table; low-precision drivers are auto-flagged for review. |
+| A flapping trigger loops on one account | Per-account hourly cap on model calls. The run continues deterministically and escalates to a human rather than billing again for the same conclusion. |
+| Daily budget runs out | Spending stops at a soft ceiling (90% of budget) so the last runs degrade predictably, not mid-analysis. Alerts are never dropped to save money. |
+| We don't trust the prediction | CRM writes are **held** and a human is asked in Slack. The golden record marks it `awaiting_approval` so downstream can tell it from an asserted finding. |
 
 ## Config vs hardcoded
 
