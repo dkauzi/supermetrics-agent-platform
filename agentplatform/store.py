@@ -89,6 +89,43 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+class ConcurrentUpdate(RuntimeError):
+    """Another writer modified the golden record first.
+
+    Raised rather than swallowed: on the record this platform claims write
+    authority over, a lost update is a data-quality bug, not an inconvenience.
+    """
+
+
+def merge_golden_record(
+    warehouse: "Warehouse", account_id: str, fields: dict[str, Any],
+    updated_by: str, trace_id: str, attempts: int = 3,
+) -> dict[str, Any]:
+    """Read-modify-write the golden record safely under concurrency.
+
+    Two agents reacting to the same account at once is normal on a shared
+    platform, so the write re-reads and retries on conflict instead of
+    clobbering. Retrying is correct here because the operation is a field merge:
+    replaying it against the newer revision yields the same intent.
+    """
+    last_error: Exception | None = None
+
+    for _ in range(attempts):
+        current = warehouse.get_golden_record(account_id)
+        expected = current["revision"] if current else 0
+        try:
+            return warehouse.upsert_golden_record(
+                account_id, fields, updated_by, trace_id, expected_revision=expected
+            )
+        except ConcurrentUpdate as exc:
+            last_error = exc
+            continue
+
+    raise ConcurrentUpdate(
+        f"could not write golden record {account_id} after {attempts} attempts: {last_error}"
+    )
+
+
 class Warehouse(ABC):
     """The storage contract. Swapping the implementation must not change callers."""
 
@@ -260,34 +297,59 @@ class SQLiteWarehouse(Warehouse):
         return record
 
     def upsert_golden_record(
-        self, account_id: str, data: dict[str, Any], updated_by: str, trace_id: str
+        self, account_id: str, data: dict[str, Any], updated_by: str, trace_id: str,
+        expected_revision: int | None = None,
     ) -> dict[str, Any]:
+        """Merge fields into the golden record.
+
+        Pass `expected_revision` to make the write optimistic: if another writer
+        has bumped the revision since you read it, this raises rather than
+        silently discarding their change. Without it the call is last-write-wins,
+        which is only safe for a single writer.
+        """
         with self._lock:
             row = self._conn.execute(
                 "SELECT data, revision FROM golden_records WHERE account_id = ?",
                 (account_id,),
             ).fetchone()
 
+            current_revision = row["revision"] if row else 0
+            if expected_revision is not None and current_revision != expected_revision:
+                raise ConcurrentUpdate(
+                    f"golden record {account_id} is at revision {current_revision}, "
+                    f"expected {expected_revision}: another writer got there first"
+                )
+
             if row is None:
-                merged, revision = data, 1
+                merged = data
             else:
                 # Merge rather than overwrite: this platform has write authority over
                 # its own fields, not over columns other systems own.
                 merged = {**json.loads(row["data"]), **data}
-                revision = row["revision"] + 1
+            revision = current_revision + 1
 
-            self._conn.execute(
-                """INSERT INTO golden_records
-                       (account_id, data, updated_at, updated_by, trace_id, revision)
-                   VALUES (?, ?, ?, ?, ?, ?)
-                   ON CONFLICT(account_id) DO UPDATE SET
-                       data = excluded.data,
-                       updated_at = excluded.updated_at,
-                       updated_by = excluded.updated_by,
-                       trace_id = excluded.trace_id,
-                       revision = excluded.revision""",
-                (account_id, json.dumps(merged, default=str), _now(), updated_by, trace_id, revision),
-            )
+            # The revision guard is repeated in SQL so the check and the write are
+            # one atomic statement, not a read followed by a hopeful write.
+            if row is None:
+                self._conn.execute(
+                    """INSERT INTO golden_records
+                           (account_id, data, updated_at, updated_by, trace_id, revision)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    (account_id, json.dumps(merged, default=str), _now(),
+                     updated_by, trace_id, revision),
+                )
+            else:
+                cursor = self._conn.execute(
+                    """UPDATE golden_records
+                       SET data = ?, updated_at = ?, updated_by = ?, trace_id = ?, revision = ?
+                       WHERE account_id = ? AND revision = ?""",
+                    (json.dumps(merged, default=str), _now(), updated_by, trace_id,
+                     revision, account_id, current_revision),
+                )
+                if cursor.rowcount == 0:
+                    raise ConcurrentUpdate(
+                        f"golden record {account_id} changed during the write"
+                    )
             self._conn.commit()
 
         return {"account_id": account_id, "revision": revision, "data": merged}
@@ -426,44 +488,6 @@ class SQLiteWarehouse(Warehouse):
         return record
 
 
-class BigQueryWarehouse(Warehouse):
-    """Production implementation.
-
-    Deliberately left as an explicit stub: the point is that the interface above
-    is the contract, and BigQuery satisfies it with streaming inserts for the
-    append-only tables (events, run_steps, dead_letters) and a MERGE for the
-    golden record. Wiring it up is a dependency and credentials, not a redesign.
-
-    See docs/ARCHITECTURE.md for the table layout and partitioning strategy.
-    """
-
-    def __init__(self, project: str, dataset: str) -> None:
-        self.project = project
-        self.dataset = dataset
-        raise NotImplementedError(
-            "BigQueryWarehouse is not wired in this local build. "
-            "Set WAREHOUSE=sqlite. See docs/ARCHITECTURE.md for the production path."
-        )
-
-    def record_event(self, event: Any) -> bool: ...
-    def attach_trace(self, event_id: str, trace_id: str) -> None: ...
-    def record_step(self, row: dict[str, Any]) -> None: ...
-    def steps_for_trace(self, trace_id: str) -> list[dict[str, Any]]: ...
-    def recent_traces(self, limit: int = 50) -> list[dict[str, Any]]: ...
-    def get_event(self, event_id: str) -> dict[str, Any] | None: ...
-    def upsert_golden_record(self, account_id, data, updated_by, trace_id): ...
-    def get_golden_record(self, account_id: str) -> dict[str, Any] | None: ...
-    def dead_letter(self, source: str | None, reason: str, payload: Any) -> None: ...
-    def dead_letters(self, limit: int = 50) -> list[dict[str, Any]]: ...
-    def record_outcome(self, row: dict[str, Any]) -> None: ...
-    def outcomes(self, agent: str | None = None) -> list[dict[str, Any]]: ...
-    def traces_for_account(self, account_id: str) -> list[dict[str, Any]]: ...
-    def steps_named(self, step: str, limit: int = 100) -> list[dict[str, Any]]: ...
-    def llm_spend_since(self, since_iso: str) -> float: ...
-    def count_llm_calls_for_account(self, account_id: str, since_iso: str) -> int: ...
-    def spend_by(self, field: str, since_iso: str) -> dict[str, float]: ...
-
-
 def build_warehouse(config: Config) -> Warehouse:
     """Factory. The only place that decides which warehouse implementation runs."""
     kind = config.get("platform.warehouse", "sqlite")
@@ -476,6 +500,10 @@ def build_warehouse(config: Config) -> Warehouse:
         return SQLiteWarehouse(path)
 
     if kind == "bigquery":
+        # Imported lazily so the BigQuery client stays an optional dependency:
+        # nobody running this locally should need google-cloud-bigquery installed.
+        from .warehouse_bigquery import BigQueryWarehouse
+
         return BigQueryWarehouse(
             project=config.require("platform.bigquery.project"),
             dataset=config.require("platform.bigquery.dataset"),

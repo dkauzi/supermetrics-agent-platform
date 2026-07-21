@@ -8,9 +8,10 @@ paths, because a demo that only shows the happy path proves nothing.
 Scenarios:
   1. Critical renewal risk        full pipeline, LLM analysis, exec escalation
   2. Redelivery of the same event idempotency - no duplicate writes
-  3. Support ticket spike         a second agent on the same bus, untouched code
-  4. Malformed payload            dead-lettered with a reason, no partial writes
-  5. Unknown source               rejected at the boundary
+  3. Renewal approaching (SF)     same agent, different vendor payload shape
+  4. Support ticket spike         a second agent on the same bus, untouched code
+  5. Malformed payload            dead-lettered with a reason, no partial writes
+  6. Unknown source               rejected at the boundary
 """
 
 from __future__ import annotations
@@ -102,13 +103,19 @@ def main() -> int:
     print(f"  {GREEN}Salesforce tasks created across both deliveries: "
           f"{len(sf_tasks)}{RESET} {DIM}(expected 1){RESET}")
 
-    # 3 - a different event type, a different agent, zero changes to agent 1.
-    banner(3, "Support ticket spike - a second agent on the same bus")
+    # 3 - the same agent, woken by a different vendor with a different payload
+    #     shape. Proves the normaliser layer, not just the happy path.
+    banner(3, "Renewal approaching from Salesforce - same agent, different trigger")
+    outcome = platform.ingest("salesforce", load("webhook_renewal_approaching.json"))
+    show_result(platform, outcome)
+
+    # 4 - a different event type, a different agent, zero changes to agent 1.
+    banner(4, "Support ticket spike - a second agent on the same bus")
     outcome = platform.ingest("zendesk", load("webhook_support_spike.json"))
     show_result(platform, outcome)
 
-    # 4 - bad input must be visible, not swallowed.
-    banner(4, "Malformed payload - dead-lettered, not silently dropped")
+    # 5 - bad input must be visible, not swallowed.
+    banner(5, "Malformed payload - dead-lettered, not silently dropped")
     try:
         platform.ingest("gainsight", {"eventId": "broken-1", "health": {"current": 20}})
     except Exception as exc:
@@ -118,8 +125,8 @@ def main() -> int:
     if letters:
         print(f"  {DIM}most recent reason:{RESET} {letters[0]['reason']}")
 
-    # 5 - an unregistered vendor.
-    banner(5, "Unknown source - rejected at the boundary")
+    # 6 - an unregistered vendor.
+    banner(6, "Unknown source - rejected at the boundary")
     try:
         platform.ingest("hubspot", {"whatever": True})
     except UnknownEventSource as exc:

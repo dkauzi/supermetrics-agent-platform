@@ -27,6 +27,38 @@ ERROR = "error"
 SKIPPED = "skipped"
 DEGRADED = "degraded"
 
+# Translations used by `plain_english`. Deliberately written for a customer
+# success manager, not an engineer: no identifiers, no jargon, no metric names.
+TRIGGER_IN_PLAIN_ENGLISH = {
+    "health_score.dropped": "this customer's health score has fallen",
+    "renewal.approaching": "this customer's renewal date is coming up",
+    "support.ticket_spike": "this customer has raised a lot of support tickets",
+    "platform.audit_requested": "it is time for the scheduled platform check",
+}
+
+DRIVER_IN_PLAIN_ENGLISH = {
+    "adoption_decline": "people have largely stopped using what they are paying for",
+    "support_burden": "they have had a bad run with support",
+    "champion_loss": "the person who championed us internally has moved on",
+    "value_realisation_gap": "they are using it but not getting the results they wanted",
+    "data_integration_regression": "they have disconnected data sources they used to rely on",
+    "engagement_gap": "we have not had meaningful contact with them in a long time",
+    "pricing_pressure": "there is budget or pricing pressure on their side",
+    "unknown": "no single clear reason stands out in the data we hold",
+}
+
+
+def _severity_reason(severity: dict[str, Any]) -> str:
+    """Turn the numbers a severity band matched on into a readable clause."""
+    parts = []
+    if severity.get("health_score") is not None:
+        parts.append(f"their health score is {severity['health_score']}")
+    if severity.get("arr_usd"):
+        parts.append(f"they are worth ${severity['arr_usd']:,} a year")
+    if severity.get("days_to_renewal") is not None:
+        parts.append(f"they renew in {severity['days_to_renewal']} days")
+    return " and ".join(parts) if parts else "of the account's overall position"
+
 
 def _configure_logger() -> logging.Logger:
     """Structured JSON so a log shipper can parse it without regex.
@@ -165,6 +197,111 @@ class Observability:
 
     def timeline(self, trace_id: str) -> list[dict[str, Any]]:
         return self.warehouse.steps_for_trace(trace_id)
+
+    def plain_english(self, trace_id: str) -> dict[str, Any]:
+        """The run described for someone who will never open the code.
+
+        The brief asks that a person can answer "why did this agent do that?"
+        within minutes without reading code. A list of step names and rule ids
+        does not clear that bar, so this translates the same trace into sentences
+        with no jargon, no identifiers and no JSON. Same data, different reader.
+        """
+        steps = self.warehouse.steps_for_trace(trace_id)
+        if not steps:
+            return {"found": False}
+
+        by_step: dict[str, dict[str, Any]] = {}
+        for step in steps:
+            by_step.setdefault(step["step"], step)
+
+        detail = lambda name: (by_step.get(name, {}).get("detail") or {})  # noqa: E731
+
+        started = detail("run_started")
+        context = detail("fetch_context")
+        analysis = detail("analyse")
+        severity = detail("severity").get("decision_inputs") or {}
+        routing = detail("routing").get("decision_inputs") or {}
+        authority = detail("write_authority")
+        gate = detail("entry_gate")
+
+        account = context.get("account_name") or started.get("account_id") or "an account"
+        lines: list[str] = []
+
+        lines.append(
+            f"A message arrived from {started.get('source', 'a connected system')} saying "
+            f"{TRIGGER_IN_PLAIN_ENGLISH.get(started.get('event_type'), 'something changed')} "
+            f"for {account}."
+        )
+
+        if context:
+            lines.append(
+                f"The agent looked up this customer across our systems and gathered "
+                f"{context.get('fact_count', 'the relevant')} pieces of information about them."
+            )
+
+        if gate.get("rule_id") == "skip":
+            lines.append(f"It decided no action was needed: {gate.get('because')}")
+            return {"found": True, "headline": f"No action taken on {account}",
+                    "lines": lines, "account": account}
+
+        if analysis:
+            driver = DRIVER_IN_PLAIN_ENGLISH.get(
+                analysis.get("driver"), analysis.get("driver", "an unclear reason"))
+            confidence = analysis.get("confidence")
+            confidence_text = f" It was {confidence:.0%} sure." if confidence else ""
+            lines.append(
+                f"Looking at that information, it judged the most likely reason this "
+                f"customer might leave is: {driver}.{confidence_text}"
+            )
+
+            if analysis.get("method") != "llm":
+                lines.append(
+                    "The AI model was not used for this one, so the answer came from the "
+                    "platform's own built-in rules instead. The conclusion is more "
+                    "cautious, and a person was asked to check it."
+                )
+
+        if detail("verify_grounding").get("passed") is False:
+            lines.append(
+                "The AI's explanation quoted figures that did not match our actual data, "
+                "so its answer was thrown away and the reliable rule-based answer used instead."
+            )
+
+        if severity.get("level"):
+            lines.append(
+                f"It rated this a {severity['level']} priority, because "
+                f"{_severity_reason(severity)}."
+            )
+
+        if authority.get("rule_id") == "held_for_human":
+            lines.append(
+                "It did NOT record this in Salesforce or Gainsight. The platform was not "
+                "confident enough to write it down as fact, so it asked a person to "
+                "approve it first."
+            )
+        elif authority:
+            lines.append("It recorded the finding in Salesforce and Gainsight.")
+
+        if routing.get("channel"):
+            who = ", ".join(routing.get("recipients") or []) or "the team"
+            lines.append(
+                f"Finally it posted an alert to {routing['channel']} for {who}, "
+                f"with the numbers that led to this conclusion."
+            )
+
+        failures = [s for s in steps if s["status"] == ERROR]
+        if failures:
+            lines.append(
+                f"{len(failures)} step(s) failed along the way and were retried or "
+                f"recorded for follow-up. Nothing was silently dropped."
+            )
+
+        driver_label = DRIVER_IN_PLAIN_ENGLISH.get(analysis.get("driver"), "a possible risk")
+        headline = (
+            f"{account}: {severity.get('level', 'possible')} churn risk, "
+            f"because {driver_label}"
+        )
+        return {"found": True, "headline": headline, "lines": lines, "account": account}
 
     def explain(self, trace_id: str) -> dict[str, Any]:
         """Plain-English narrative of a run, for people who will not read code.

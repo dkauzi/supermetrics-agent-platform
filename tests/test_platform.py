@@ -521,6 +521,221 @@ def test_trusted_run_writes_without_asking(platform):
     assert record["data"]["renewal_risk_write_status"] == "asserted"
 
 
+# ── "Why did this agent do that?" for a non-engineer ───────────────────────────
+
+JARGON = ["trace_id", "tr_", "rule_id", "event_type", "health_score.dropped",
+          "adoption_decline", "deterministic_fallback", "{", "}", "_"]
+
+
+def test_plain_english_explanation_contains_no_jargon(platform):
+    result = platform.ingest("gainsight", load_sample("webhook_health_score_drop.json"))
+    plain = platform.observability.plain_english(result["trace_ids"][0])
+
+    assert plain["found"]
+    text = plain["headline"] + " " + " ".join(plain["lines"])
+    for token in JARGON:
+        assert token not in text, f"'{token}' is engineer language, not plain English"
+
+
+def test_plain_english_answers_the_five_questions_a_person_asks(platform):
+    result = platform.ingest("gainsight", load_sample("webhook_health_score_drop.json"))
+    plain = platform.observability.plain_english(result["trace_ids"][0])
+    text = " ".join(plain["lines"]).lower()
+
+    assert "message arrived" in text                      # what woke it
+    assert "looked up this customer" in text              # what it looked at
+    assert "most likely reason" in text                   # what it concluded
+    assert "priority" in text                             # how serious
+    assert "posted an alert" in text                      # what it did about it
+
+
+def test_plain_english_names_the_customer_not_an_id(platform):
+    result = platform.ingest("gainsight", load_sample("webhook_health_score_drop.json"))
+    plain = platform.observability.plain_english(result["trace_ids"][0])
+    assert "Northwind Media Group" in plain["headline"]
+    assert "ACC-4417" not in plain["headline"]
+
+
+def test_plain_english_explains_a_skipped_run_too(platform):
+    # "Why did nothing happen?" must be as answerable as "why did this happen?"
+    payload = load_sample("webhook_health_score_drop.json")
+    payload["eventId"] = "skip-case-1"
+    payload["account"]["id"] = "ACC-9033"
+    platform.config.raw["agents"]["renewal_risk"]["triggers"]["renewal_window_days"] = 1
+
+    result = platform.ingest("gainsight", payload)
+    plain = platform.observability.plain_english(result["trace_ids"][0])
+    assert "No action taken" in plain["headline"]
+    assert any("no action was needed" in line for line in plain["lines"])
+
+
+def test_held_writes_are_explained_in_plain_english(platform):
+    for i in range(8):
+        record_outcome(platform.warehouse, f"seed-{i}", "renewal_risk", "ACC-4417",
+                       "adoption_decline", "critical", "wrong")
+    result = platform.ingest("gainsight", load_sample("webhook_health_score_drop.json"))
+    plain = platform.observability.plain_english(result["trace_ids"][0])
+
+    text = " ".join(plain["lines"])
+    assert "did NOT record this" in text
+    assert "asked a person to approve" in text
+
+
+# ── Golden record concurrency ──────────────────────────────────────────────────
+
+def test_stale_write_is_rejected_not_silently_applied(platform):
+    from agentplatform.store import ConcurrentUpdate
+
+    platform.warehouse.upsert_golden_record("ACC-C", {"a": 1}, "agent_one", "tr_1")
+    # Second writer read revision 1 and wrote, moving it to 2.
+    platform.warehouse.upsert_golden_record("ACC-C", {"b": 2}, "agent_two", "tr_2",
+                                            expected_revision=1)
+    # First writer still thinks it is at revision 1. Its write must not land.
+    with pytest.raises(ConcurrentUpdate):
+        platform.warehouse.upsert_golden_record("ACC-C", {"a": 99}, "agent_one", "tr_3",
+                                                expected_revision=1)
+    assert platform.warehouse.get_golden_record("ACC-C")["data"]["a"] == 1
+
+
+def test_merge_helper_retries_and_preserves_both_writers(platform):
+    from agentplatform.store import merge_golden_record
+
+    merge_golden_record(platform.warehouse, "ACC-D", {"from_one": True}, "one", "tr_1")
+    merge_golden_record(platform.warehouse, "ACC-D", {"from_two": True}, "two", "tr_2")
+
+    record = platform.warehouse.get_golden_record("ACC-D")
+    # Neither agent's field was lost, which is the whole point.
+    assert record["data"]["from_one"] is True
+    assert record["data"]["from_two"] is True
+    assert record["revision"] == 2
+
+
+def test_writes_without_expected_revision_stay_last_write_wins(platform):
+    # Backwards compatible: the guard is opt-in, so existing single-writer
+    # callers are not forced to handle a conflict they cannot have.
+    platform.warehouse.upsert_golden_record("ACC-E", {"x": 1}, "one", "tr_1")
+    result = platform.warehouse.upsert_golden_record("ACC-E", {"x": 2}, "two", "tr_2")
+    assert result["revision"] == 2
+
+
+# ── Privacy / data minimisation ────────────────────────────────────────────────
+
+def test_identifiers_are_replaced_before_the_payload_leaves(platform):
+    from agentplatform.privacy import Pseudonymiser
+
+    p = Pseudonymiser(enabled=True)
+    scrubbed = p.scrub_account({
+        "account_id": "ACC-4417", "name": "Northwind Media Group",
+        "owner": "Priya Raman", "owner_slack": "@priya", "arr_usd": 248000,
+        "segment": "enterprise",
+    })
+
+    assert "Northwind" not in json.dumps(scrubbed)
+    assert "Priya" not in json.dumps(scrubbed)
+    # Metrics must survive: the model needs them to identify a driver.
+    assert scrubbed["arr_usd"] == 248000
+    assert scrubbed["segment"] == "enterprise"
+
+
+def test_real_names_are_restored_before_a_human_sees_the_output(platform):
+    from agentplatform.privacy import Pseudonymiser
+
+    p = Pseudonymiser(enabled=True)
+    scrubbed = p.scrub_account({"account_id": "ACC-1", "name": "Northwind Media Group"})
+    token = scrubbed["name"]
+    assert p.rehydrate(f"Churn risk at {token} is high") == \
+        "Churn risk at Northwind Media Group is high"
+
+
+def test_privacy_audit_does_not_leak_what_it_withheld(platform):
+    from agentplatform.privacy import Pseudonymiser
+
+    p = Pseudonymiser(enabled=True)
+    p.scrub_account({"name": "Northwind Media Group", "owner": "Priya Raman"})
+    audit = json.dumps(p.audit())
+    # Recording the mapping in the trace would reintroduce the data we removed.
+    assert "Northwind" not in audit and "Priya" not in audit
+    assert p.audit()["identifiers_replaced"] == 2
+
+
+def test_minimisation_can_be_disabled_by_config(platform):
+    from agentplatform.privacy import Pseudonymiser
+    original = {"name": "Northwind Media Group"}
+    assert Pseudonymiser(enabled=False).scrub_account(original) == original
+
+
+def test_run_records_that_minimisation_happened(platform):
+    result = platform.ingest("gainsight", load_sample("webhook_health_score_drop.json"))
+    steps = platform.warehouse.steps_for_trace(result["trace_ids"][0])
+    # Offline the LLM is skipped, so assert the capability rather than the step.
+    assert any(s["step"] == "fetch_context" for s in steps)
+
+
+# ── HubSpot as a fifth vendor ──────────────────────────────────────────────────
+
+def test_hubspot_facts_reach_the_analysis(platform):
+    from agents.renewal_risk.analysis import build_facts
+    facts = build_facts(
+        {"account_id": "A", "arr_usd": 1000, "renewal_date": "2026-09-01"},
+        {"health_score": 40},
+        {"email_open_rate_30d": 0.11, "marketing_contacts_active": 3},
+    )
+    assert facts["email_open_rate_30d"] == 0.11
+    assert facts["marketing_contacts_active"] == 3
+
+
+def test_missing_hubspot_does_not_block_the_alert(platform, monkeypatch):
+    """HubSpot is a supporting signal. Losing it must degrade, not stop the run."""
+    def down(self, operation, payload):
+        raise TimeoutError("hubspot unavailable")
+
+    monkeypatch.setattr(
+        platform.tools.raw("hubspot").__class__, "_execute", down
+    )
+
+    result = platform.ingest("gainsight", load_sample("webhook_health_score_drop.json"))
+    payload = result["results"][0]["result"]
+
+    assert payload["acted"] is True, "a missing supporting signal must not block a churn alert"
+    assert platform.tools.raw("slack").sent, "the human is still notified"
+
+
+# ── BigQuery warehouse ─────────────────────────────────────────────────────────
+
+def test_bigquery_satisfies_the_same_interface_as_sqlite():
+    from agentplatform.store import Warehouse
+    from agentplatform.warehouse_bigquery import BigQueryWarehouse
+    # Abstract methods unimplemented would make this fail to instantiate.
+    warehouse = BigQueryWarehouse("proj", "ds", client=object())
+    assert isinstance(warehouse, Warehouse)
+
+
+def test_golden_record_merge_guards_on_revision():
+    from agentplatform.warehouse_bigquery import golden_record_merge_sql
+    sql = golden_record_merge_sql("proj", "ds")
+    # Without this predicate a concurrent writer's change vanishes silently.
+    assert "WHEN MATCHED AND target.revision = @expected_revision" in sql
+    assert "revision = target.revision + 1" in sql
+    assert "JSON_MERGE_PATCH" in sql, "merge, never overwrite columns others own"
+
+
+def test_trace_tables_are_partitioned_clustered_and_expire():
+    from agentplatform.warehouse_bigquery import ddl_statements
+    ddl = "\n".join(ddl_statements("proj", "ds"))
+    assert "PARTITION BY DATE(ts)" in ddl
+    assert "CLUSTER BY agent, trace_id, step" in ddl
+    assert "partition_expiration_days = 365" in ddl
+    # The golden record is the record, not a trace: it must not expire.
+    golden = [s for s in ddl_statements("proj", "ds") if "golden_record_accounts" in s][0]
+    assert "partition_expiration_days" not in golden
+
+
+def test_bigquery_sql_is_parameterised_not_interpolated():
+    from agentplatform.warehouse_bigquery import spend_since_sql, recent_traces_sql
+    assert "@since" in spend_since_sql("proj", "ds")
+    assert "@limit" in recent_traces_sql("proj", "ds")
+
+
 # ── Platform QA agent ──────────────────────────────────────────────────────────
 
 def test_platform_qa_passes_on_a_clean_platform(platform, monkeypatch, tmp_path):

@@ -18,6 +18,7 @@ from typing import Any
 from agentplatform.feedback import Calibration
 from agentplatform.limits import check_limits
 from agentplatform.llm import LLMUnavailable
+from agentplatform.privacy import build_pseudonymiser
 from agentplatform.observability import DEGRADED
 from agentplatform.verifier import verify_grounding
 
@@ -39,7 +40,8 @@ def _days_until(value: str | None) -> int | None:
     return (target - datetime.now(timezone.utc).date()).days
 
 
-def build_facts(account: dict[str, Any], health: dict[str, Any]) -> dict[str, Any]:
+def build_facts(account: dict[str, Any], health: dict[str, Any],
+                marketing: dict[str, Any] | None = None) -> dict[str, Any]:
     """Flatten everything we retrieved into one citable table.
 
     This dict is simultaneously the model's input, the verifier's source of truth
@@ -47,6 +49,9 @@ def build_facts(account: dict[str, Any], health: dict[str, Any]) -> dict[str, An
     so a claim can never be checked against different data than it was made on.
     """
     support = health.get("support", {}) or {}
+    # Marketing engagement comes from HubSpot and may be absent; falling back to
+    # the embedded copy keeps build_facts usable standalone in tests and evals.
+    engagement = marketing if marketing is not None else (health.get("marketing", {}) or {})
 
     facts: dict[str, Any] = {
         "arr_usd": account.get("arr_usd"),
@@ -72,6 +77,12 @@ def build_facts(account: dict[str, Any], health: dict[str, Any]) -> dict[str, An
         "tickets_prev_30d": support.get("tickets_prev_30d"),
         "avg_first_response_hours": support.get("avg_first_response_hours"),
         "csat_30d": support.get("csat_30d"),
+        "email_open_rate_30d": engagement.get("email_open_rate_30d"),
+        "email_open_rate_prev_30d": engagement.get("email_open_rate_prev_30d"),
+        "webinar_attendance_90d": engagement.get("webinar_attendance_90d"),
+        "content_downloads_90d": engagement.get("content_downloads_90d"),
+        "marketing_contacts_active": engagement.get("marketing_contacts_active"),
+        "marketing_contacts_active_90d_ago": engagement.get("marketing_contacts_active_90d_ago"),
     }
 
     # Derived deltas are computed once here rather than left to the model, which
@@ -218,14 +229,27 @@ def analyse(ctx, account: dict[str, Any], facts: dict[str, Any],
         **limit.as_detail(),
     )
 
+    # Identities are replaced with tokens before the payload crosses to a third
+    # party, and restored in the output a human reads. The model gets the metrics,
+    # which is all it needs to identify a driver.
+    pseudonymiser = build_pseudonymiser(ctx.config)
+
     try:
         if not limit.allow_llm:
             raise LLMUnavailable(f"limit:{limit.limit_hit}")
 
-        bundle = prompts.build(version, account, facts, trigger)
+        safe_account = pseudonymiser.scrub_account(account)
+        ctx.trace.record("privacy_minimisation", "ok", **pseudonymiser.audit())
+
+        bundle = prompts.build(version, safe_account, facts, trigger)
         ctx.trace.record("prompt_built", "ok", prompt=bundle.fingerprint(),
                          fact_count=len(facts))
         candidate, llm_meta = llm.complete_structured(bundle, ChurnAnalysis, ctx.trace)
+
+        # Put the real names back before anything reaches a person or a CRM.
+        candidate.alert_message = pseudonymiser.rehydrate(candidate.alert_message)
+        candidate.driver_explanation = pseudonymiser.rehydrate(candidate.driver_explanation)
+        candidate.recommended_action = pseudonymiser.rehydrate(candidate.recommended_action)
         meta = AnalysisMeta(
             method="llm", model=llm_meta.model, prompt_version=version,
             attempts=llm_meta.attempts, repaired=llm_meta.repaired,

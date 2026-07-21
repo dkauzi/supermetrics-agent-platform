@@ -31,6 +31,14 @@
         "tickets_prev_30d": 6,
         "avg_first_response_hours": 14.2,
         "csat_30d": 2.9
+      },
+      "marketing": {
+        "email_open_rate_30d": 0.11,
+        "email_open_rate_prev_30d": 0.34,
+        "webinar_attendance_90d": 0,
+        "content_downloads_90d": 1,
+        "marketing_contacts_active": 3,
+        "marketing_contacts_active_90d_ago": 11
       }
     }
   },
@@ -66,6 +74,14 @@
         "tickets_prev_30d": 8,
         "avg_first_response_hours": 22.6,
         "csat_30d": 2.4
+      },
+      "marketing": {
+        "email_open_rate_30d": 0.29,
+        "email_open_rate_prev_30d": 0.31,
+        "webinar_attendance_90d": 2,
+        "content_downloads_90d": 4,
+        "marketing_contacts_active": 9,
+        "marketing_contacts_active_90d_ago": 10
       }
     }
   },
@@ -101,6 +117,14 @@
         "tickets_prev_30d": 4,
         "avg_first_response_hours": 6.1,
         "csat_30d": 4.3
+      },
+      "marketing": {
+        "email_open_rate_30d": 0.38,
+        "email_open_rate_prev_30d": 0.36,
+        "webinar_attendance_90d": 3,
+        "content_downloads_90d": 6,
+        "marketing_contacts_active": 14,
+        "marketing_contacts_active_90d_ago": 13
       }
     }
   }

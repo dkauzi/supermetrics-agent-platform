@@ -1,0 +1,11 @@
+{
+  "eventId": "sf-evt-2026-07-21-0007",
+  "triggeredAt": "2026-07-21T07:30:00Z",
+  "AccountId": "ACC-9033",
+  "OpportunityId": "0061t00000ABCDeAAN",
+  "StageName": "Renewal - Pending",
+  "CloseDate": "2026-08-20",
+  "Amount": 121000,
+  "daysToRenewal": 30,
+  "OwnerId": "0051t000004xYzKAAU"
+}

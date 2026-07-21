@@ -9,19 +9,22 @@ from .base import (
     BoundClient, ScopedToolBelt, ToolBelt, ToolClient, ToolError, ToolPermissionError,
 )
 from .policies import Call, CircuitOpen, build_chain
-from .vendors import GainsightClient, SalesforceClient, SlackClient, ZendeskClient
+from .vendors import (
+    GainsightClient, HubSpotClient, SalesforceClient, SlackClient, ZendeskClient,
+)
 
 __all__ = [
     "BoundClient", "ScopedToolBelt", "ToolBelt", "ToolClient", "ToolError",
     "ToolPermissionError", "CircuitOpen", "Call", "build_chain",
-    "GainsightClient", "SalesforceClient", "SlackClient", "ZendeskClient",
-    "build_toolbelt",
+    "GainsightClient", "HubSpotClient", "SalesforceClient", "SlackClient",
+    "ZendeskClient", "build_toolbelt",
 ]
 
 TRANSPORTS: dict[str, type[ToolClient]] = {
     "salesforce": SalesforceClient,
     "gainsight": GainsightClient,
     "zendesk": ZendeskClient,
+    "hubspot": HubSpotClient,
     "slack": SlackClient,
 }
 

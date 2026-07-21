@@ -25,6 +25,7 @@ agents:
     tools:
       - salesforce
       - gainsight
+      - hubspot
       - slack
     writes_golden_record: true
     last_reviewed: "2026-07-14"

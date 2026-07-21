@@ -80,6 +80,16 @@ tools:
       retry:
         max_attempts: 2
 
+    hubspot:
+      # Supporting signal only: if it is slow or down the analysis proceeds
+      # without it, so fail fast rather than delay a churn alert.
+      retry:
+        max_attempts: 2
+        backoff_seconds: 0.1
+      circuit_breaker:
+        failure_threshold: 3
+        cooldown_seconds: 60
+
 # Output verification. Runs between the model and any system of record.
 # Runaway and spend protection. When any of these trips the work does NOT stop:
 # the run continues deterministically and is routed to a human. A cost control
@@ -90,6 +100,12 @@ limits:
   # Stop paying for the model at this fraction of the daily budget, so the last
   # runs of the day degrade predictably instead of mid-analysis.
   human_review_reserve_ratio: 0.9
+
+# Data protection. The model needs the metrics, not the identities, so direct
+# identifiers are swapped for tokens before the payload leaves for OpenRouter and
+# swapped back in the output a human reads.
+privacy:
+  minimise_llm_payload: true
 
 verification:
   min_evidence_items: 2

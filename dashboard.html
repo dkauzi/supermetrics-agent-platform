@@ -65,6 +65,14 @@
   .bar.low i{background:var(--err)} .bar.mid i{background:var(--warn)}
   .muted{color:var(--muted)}
   .note{padding:10px 16px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line)}
+  .plain{padding:16px}
+  .plain-head{font-size:15.5px;font-weight:640;letter-spacing:-.01em;margin-bottom:10px}
+  .plain-list{margin:0;padding-left:20px;font-size:14px;line-height:1.65}
+  .plain-list li{margin-bottom:7px}
+  .tech{border-top:1px solid var(--line)}
+  .tech summary{padding:11px 16px;cursor:pointer;font-size:12px;color:var(--muted);
+                text-transform:uppercase;letter-spacing:.06em;font-weight:620}
+  .tech summary:hover{color:var(--accent)}
 </style>
 </head>
 <body>
@@ -354,16 +362,29 @@ async function showWhy(traceId){
         w.failures.map(f => `<li class="err">${esc(f.step)}: ${esc(f.error)}</li>`).join('')}</ul></div>`
     : '';
 
+  // Plain English first, because the person asking "why did it do that?" is
+  // usually not an engineer. The technical trace stays one click away.
+  const p = w.plain || {};
+  const plain = p.found ? `
+    <div class="plain">
+      <div class="plain-head">${esc(p.headline)}</div>
+      <ol class="plain-list">${p.lines.map(l => `<li>${esc(l)}</li>`).join('')}</ol>
+    </div>` : '';
+
   $('why').innerHTML = `
-    <div class="narr">
-      <div class="tid">${esc(w.trace_id)} · agent <b>${esc(w.agent)}</b> ·
-           ${w.step_count} steps · $${w.total_cost_usd.toFixed(5)}</div>
-      <ol style="margin:12px 0 0;padding-left:20px">
-        ${w.narrative.map(n => `<li>${esc(n)}</li>`).join('')}
-      </ol>
-    </div>
-    <div style="padding-bottom:6px">${decisions}</div>
-    ${failures}
+    ${plain}
+    <details class="tech">
+      <summary>Technical detail: steps, rules and values</summary>
+      <div class="narr">
+        <div class="tid">${esc(w.trace_id)} · agent <b>${esc(w.agent)}</b> ·
+             ${w.step_count} steps · $${w.total_cost_usd.toFixed(5)}</div>
+        <ol style="margin:12px 0 0;padding-left:20px">
+          ${w.narrative.map(n => `<li>${esc(n)}</li>`).join('')}
+        </ol>
+      </div>
+      <div style="padding-bottom:6px">${decisions}</div>
+      ${failures}
+    </details>
     <div class="fb">
       <span class="muted">Was this alert correct?</span>
       <button class="p" onclick="sendFeedback('correct')">Correct</button>

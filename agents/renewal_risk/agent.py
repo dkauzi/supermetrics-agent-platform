@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from agentplatform.clients import ToolError
+from agentplatform.store import ConcurrentUpdate, merge_golden_record
 from agentplatform.feedback import Calibration
 from agentplatform.observability import DEGRADED, OK, SKIPPED
 
@@ -63,7 +64,17 @@ def handle(ctx) -> dict[str, Any]:
     with trace.step("fetch_context") as step:
         account = ctx.tools.salesforce.call("get_account", {"account_id": account_id})
         health = ctx.tools.gainsight.call("get_health", {"account_id": account_id})
-        facts = build_facts(account, health)
+
+        # HubSpot is a supporting signal, not a dependency. If marketing data is
+        # unavailable the analysis proceeds with fewer facts rather than failing,
+        # because a missing nice-to-have must never block a churn alert.
+        try:
+            marketing = ctx.tools.hubspot.call("get_engagement", {"account_id": account_id})
+        except ToolError as exc:
+            marketing = {}
+            step.set(hubspot_unavailable=str(exc))
+
+        facts = build_facts(account, health, marketing)
         step.set(account_name=account.get("name"), arr_usd=account.get("arr_usd"),
                  fact_count=len(facts))
 
@@ -189,9 +200,12 @@ def handle(ctx) -> dict[str, Any]:
     # 6. Golden record. This platform owns these fields and stamps provenance on
     #    every write, so no downstream consumer has to guess where they came from.
     with trace.step("update_golden_record") as step:
-        record = ctx.warehouse.upsert_golden_record(
+        # Optimistic write: two agents can react to the same account at once, and
+        # on the record we claim write authority over a lost update is a bug.
+        record = merge_golden_record(
+            ctx.warehouse,
             account_id=account_id,
-            data={
+            fields={
                 "account_name": account.get("name"),
                 "arr_usd": account.get("arr_usd"),
                 "renewal_date": account.get("renewal_date"),

@@ -90,10 +90,17 @@ def trace_detail(trace_id: str) -> dict[str, Any]:
 
 @app.get("/traces/{trace_id}/why")
 def trace_why(trace_id: str) -> dict[str, Any]:
-    """Plain-English explanation of one run. The answer to the 2am question."""
+    """Why this agent did that, for two different readers.
+
+    `plain` is written for whoever is actually asking: a CS lead, a manager, an
+    account owner. No identifiers, no rule names, no JSON. `narrative` and
+    `decisions` keep the engineer's version, with the rule that fired and the
+    values it matched. Same trace, so the two can never disagree.
+    """
     explanation = platform.observability.explain(trace_id)
     if not explanation["found"]:
         raise HTTPException(status_code=404, detail=f"no trace {trace_id}")
+    explanation["plain"] = platform.observability.plain_english(trace_id)
     return explanation
 
 

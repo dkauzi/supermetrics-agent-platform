@@ -119,6 +119,30 @@ class ZendeskClient(ToolClient):
         raise ValueError(f"unsupported zendesk operation: {operation}")
 
 
+class HubSpotClient(ToolClient):
+    """Marketing engagement. Named in the brief alongside the other systems.
+
+    Added to show what onboarding a fifth vendor actually costs on this platform:
+    this class, one entry in TRANSPORTS, and a `tools:` grant in the registry.
+    No agent, policy or observability code changes.
+    """
+
+    name = "hubspot"
+
+    def __init__(self, config: Config) -> None:
+        super().__init__(config)
+        self._accounts = _load_fixtures()
+
+    def _execute(self, operation: str, payload: dict[str, Any]) -> dict[str, Any]:
+        if operation == "get_engagement":
+            account = self._accounts.get(payload["account_id"])
+            if account is None:
+                raise ValueError(f"account {payload['account_id']} not found in HubSpot")
+            return account["health"].get("marketing", {})
+
+        raise ValueError(f"unsupported hubspot operation: {operation}")
+
+
 class SlackClient(ToolClient):
     """Notification channel. Mocked: messages are captured, not sent."""
 
