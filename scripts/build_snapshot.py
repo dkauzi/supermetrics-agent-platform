@@ -29,7 +29,9 @@ sys.path.insert(0, str(ROOT))
 from agentplatform import build_platform  # noqa: E402
 from agentplatform.config import data_dir  # noqa: E402
 
-SITE = ROOT / "site"
+# GitHub Pages will only serve from the repo root or /docs, so the snapshot lands
+# alongside the written docs rather than in a directory of its own.
+SITE = ROOT / "docs"
 
 
 def capture(client) -> dict:
@@ -101,7 +103,7 @@ def main() -> int:
     size_kb = len(injected) / 1024
     print(f"\nWrote {SITE / 'index.html'} ({size_kb:.0f} KB)")
     print(f"Captured {len([k for k in snapshot if k.startswith('/')])} endpoint responses")
-    print("Publish with: GitHub repo settings -> Pages -> deploy from branch main, /site")
+    print("Published via GitHub Pages from branch main, /docs")
     return 0
 
 
