@@ -1,0 +1,20 @@
+{
+  "eventId": "gs-evt-2026-07-21-0001",
+  "eventType": "HEALTH_SCORE_DECLINE",
+  "triggeredAt": "2026-07-21T08:14:00Z",
+  "account": {
+    "id": "ACC-4417",
+    "name": "Northwind Media Group"
+  },
+  "health": {
+    "current": 38,
+    "previous": 71,
+    "delta": -33,
+    "reason": "usage_and_sentiment_decline"
+  },
+  "renewal": {
+    "date": "2026-09-30",
+    "daysRemaining": 71,
+    "arrUsd": 248000
+  }
+}

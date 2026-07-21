@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        run: pip install -r requirements.txt
+
+      - name: Validate configuration and registry
+        # Fails the build if the registry is malformed, an owner is missing, or a
+        # handler cannot be imported — the same checks that run at startup.
+        run: python cli.py registry
+
+      - name: Tests
+        run: pytest -q
+
+      - name: Golden eval gate
+        # Offline: scores the deterministic analyser, which is the floor the LLM
+        # must beat. No API key in CI, no spend, still catches regressions in the
+        # analysis, verification and calibration paths.
+        env:
+          LLM_MODE: offline
+        run: python cli.py eval
+
+      - name: End-to-end smoke
+        env:
+          LLM_MODE: offline
+        run: python runner.py

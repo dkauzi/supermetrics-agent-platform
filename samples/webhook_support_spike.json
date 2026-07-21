@@ -1,0 +1,7 @@
+{
+  "eventId": "zd-evt-2026-07-21-0044",
+  "triggeredAt": "2026-07-21T09:02:00Z",
+  "organization_id": "ACC-2201",
+  "trigger": "ticket_volume_spike",
+  "window_days": 30
+}

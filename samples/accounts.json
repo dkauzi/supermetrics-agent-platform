@@ -1,0 +1,107 @@
+[
+  {
+    "account_id": "ACC-4417",
+    "name": "Northwind Media Group",
+    "arr_usd": 248000,
+    "renewal_date": "2026-09-30",
+    "contract_start": "2023-10-01",
+    "owner": "Priya Raman",
+    "owner_slack": "@priya",
+    "cs_lead_slack": "@marta",
+    "segment": "enterprise",
+    "health": {
+      "health_score": 38,
+      "health_score_previous": 71,
+      "health_score_30d_ago": 74,
+      "seats_licensed": 120,
+      "seats_active_30d": 41,
+      "seats_active_90d_ago": 103,
+      "weekly_active_users": 22,
+      "data_sources_connected": 9,
+      "data_sources_connected_90d_ago": 14,
+      "last_login_days_ago": 11,
+      "nps_last": 4,
+      "nps_previous": 8,
+      "qbr_last_days_ago": 142,
+      "exec_sponsor_changed": true,
+      "support": {
+        "open_tickets": 7,
+        "p1_tickets_30d": 3,
+        "tickets_30d": 19,
+        "tickets_prev_30d": 6,
+        "avg_first_response_hours": 14.2,
+        "csat_30d": 2.9
+      }
+    }
+  },
+  {
+    "account_id": "ACC-2201",
+    "name": "Bluefin Commerce",
+    "arr_usd": 64000,
+    "renewal_date": "2026-10-15",
+    "contract_start": "2024-10-15",
+    "owner": "Tom Alvarez",
+    "owner_slack": "@tom",
+    "cs_lead_slack": "@marta",
+    "segment": "mid-market",
+    "health": {
+      "health_score": 61,
+      "health_score_previous": 73,
+      "health_score_30d_ago": 75,
+      "seats_licensed": 40,
+      "seats_active_30d": 33,
+      "seats_active_90d_ago": 35,
+      "weekly_active_users": 28,
+      "data_sources_connected": 6,
+      "data_sources_connected_90d_ago": 6,
+      "last_login_days_ago": 2,
+      "nps_last": 7,
+      "nps_previous": 8,
+      "qbr_last_days_ago": 47,
+      "exec_sponsor_changed": false,
+      "support": {
+        "open_tickets": 9,
+        "p1_tickets_30d": 4,
+        "tickets_30d": 27,
+        "tickets_prev_30d": 8,
+        "avg_first_response_hours": 22.6,
+        "csat_30d": 2.4
+      }
+    }
+  },
+  {
+    "account_id": "ACC-9033",
+    "name": "Halcyon Analytics",
+    "arr_usd": 121000,
+    "renewal_date": "2026-08-20",
+    "contract_start": "2022-08-20",
+    "owner": "Ines Duarte",
+    "owner_slack": "@ines",
+    "cs_lead_slack": "@marta",
+    "segment": "enterprise",
+    "health": {
+      "health_score": 52,
+      "health_score_previous": 66,
+      "health_score_30d_ago": 69,
+      "seats_licensed": 75,
+      "seats_active_30d": 58,
+      "seats_active_90d_ago": 62,
+      "weekly_active_users": 44,
+      "data_sources_connected": 11,
+      "data_sources_connected_90d_ago": 11,
+      "last_login_days_ago": 1,
+      "nps_last": 6,
+      "nps_previous": 9,
+      "qbr_last_days_ago": 195,
+      "exec_sponsor_changed": true,
+      "support": {
+        "open_tickets": 2,
+        "p1_tickets_30d": 0,
+        "tickets_30d": 5,
+        "tickets_prev_30d": 4,
+        "avg_first_response_hours": 6.1,
+        "csat_30d": 4.3
+      }
+    }
+  }
+]

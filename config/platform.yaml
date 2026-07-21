@@ -1,0 +1,114 @@
+# Platform configuration.
+#
+# Everything here is changeable without touching agent code. If you find yourself
+# editing Python to change a threshold, a channel or a model, that value belongs
+# in this file instead.
+
+platform:
+  env: local
+  warehouse: sqlite
+  sqlite_path: ./data/platform.db
+  bigquery:
+    project: supermetrics-gtm
+    dataset: agent_platform
+    events_table: agent_events
+    steps_table: agent_run_steps
+    golden_record_table: golden_record_accounts
+
+llm:
+  provider: openrouter
+  base_url: https://openrouter.ai/api/v1
+  # Tried in order. A model being deprecated or rate-limited by the vendor is a
+  # config change here, not an agent code change.
+  model_chain:
+    - anthropic/claude-sonnet-4.5
+    - openai/gpt-4o-mini
+    - google/gemini-2.0-flash-001
+  temperature: 0.1
+  max_tokens: 900
+  timeout_seconds: 30
+  # Schema-invalid output gets one repair round-trip before we fall back to rules.
+  max_repair_attempts: 1
+  daily_cost_budget_usd: 25.0
+
+tools:
+  retry:
+    max_attempts: 3
+    backoff_seconds: 0.25
+    backoff_multiplier: 2.0
+  timeout_seconds: 10
+  failure_injection_rate: 0.0
+
+# Output verification. Runs between the model and any system of record.
+verification:
+  min_evidence_items: 2
+  numeric_tolerance: 0.01
+  # false = a claim citing a metric we never fetched blocks the write.
+  allow_unverifiable_claims: false
+
+# The learning loop. Thresholds for when measured precision starts overriding
+# the model's own confidence. Nothing here is a quality score we invented —
+# these are only the sample sizes at which real outcomes take over.
+learning:
+  min_samples: 5
+  trust_precision: 0.75
+  review_precision: 0.5
+
+# Golden-eval gate. CI fails and a prompt is not promoted below these floors.
+eval:
+  min_driver_accuracy: 0.6
+  # An ungrounded citation is a defect, not a miss — there is no acceptable rate.
+  min_grounding_rate: 1.0
+
+agents:
+  renewal_risk:
+    # Prompt rollback is this one line. See docs/RUNBOOK.md.
+    prompt_version: v2
+    min_confidence: 0.55
+
+    triggers:
+      renewal_window_days: 90
+      health_score_drop_min: 10
+      health_score_floor: 65
+
+    # Severity is computed deterministically from account facts, NOT by the LLM.
+    # The LLM explains the driver; the platform decides the blast radius.
+    severity:
+      - level: critical
+        when: { health_score_max: 40, arr_usd_min: 100000 }
+      - level: critical
+        when: { health_score_max: 30 }
+      - level: high
+        when: { health_score_max: 55 }
+      - level: medium
+        when: { health_score_max: 70 }
+      - level: low
+        when: {}
+
+    routing:
+      # First match wins. The matched rule id is written to the trace, so
+      # "why did it go to that channel" is answerable without reading code.
+      rules:
+        - id: critical_exec_escalation
+          when: { severity: [critical], arr_usd_min: 100000 }
+          channel: "#cs-exec-escalations"
+          notify: [account_owner, cs_lead]
+          mention: true
+        - id: critical_standard
+          when: { severity: [critical] }
+          channel: "#cs-renewals"
+          notify: [account_owner]
+          mention: true
+        - id: high_owner_alert
+          when: { severity: [high] }
+          channel: "#cs-renewals"
+          notify: [account_owner]
+          mention: false
+        - id: routine_monitoring
+          when: { severity: [medium, low] }
+          channel: "#cs-monitoring"
+          notify: [account_owner]
+          mention: false
+      # Used when no rule matches or the owner cannot be resolved.
+      # An alert is never silently dropped.
+      fallback_channel: "#cs-platform-alerts"

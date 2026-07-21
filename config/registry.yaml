@@ -1,0 +1,55 @@
+# Agent Registry — the master catalogue.
+#
+# This file is the single source of truth for: what agents exist, what they do,
+# who owns them, which events wake them up, which tools they may touch, and when
+# they were last reviewed.
+#
+# Adding an agent to the platform is an entry here plus a handler module.
+# No existing agent changes. Nothing is hardwired agent-to-agent.
+
+agents:
+  - name: renewal_risk
+    version: "1.3.0"
+    description: >
+      Detects accounts whose renewal is approaching while health score is falling,
+      identifies the likely churn driver with supporting evidence, writes the finding
+      to Salesforce and Gainsight, and routes an alert to the account owner.
+    owner: denis.miano
+    owner_email: denis.miano@supermetrics.com
+    owner_slack: "@denis"
+    team: cs-ai
+    handler: agents.renewal_risk.agent:handle
+    subscribes_to:
+      - health_score.dropped
+      - renewal.approaching
+    tools:
+      - salesforce
+      - gainsight
+      - slack
+    writes_golden_record: true
+    last_reviewed: "2026-07-14"
+    review_interval_days: 90
+    enabled: true
+
+  # Second agent exists to prove the platform is genuinely shared: it subscribes
+  # to a different event, reuses the same tool clients and observability, and was
+  # onboarded without touching renewal_risk.
+  - name: support_escalation
+    version: "0.2.0"
+    description: >
+      Flags accounts accumulating high-priority Zendesk tickets so CS sees a support
+      problem before it becomes a renewal problem.
+    owner: jordon.lacken
+    owner_email: jordon.lacken@supermetrics.com
+    owner_slack: "@jordon"
+    team: support-ai
+    handler: agents.support_escalation.agent:handle
+    subscribes_to:
+      - support.ticket_spike
+    tools:
+      - zendesk
+      - slack
+    writes_golden_record: false
+    last_reviewed: "2026-01-10"
+    review_interval_days: 90
+    enabled: true

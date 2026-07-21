@@ -1,0 +1,19 @@
+{
+  "eventId": "gs-evt-2026-07-21-0002",
+  "eventType": "HEALTH_SCORE_DECLINE",
+  "triggeredAt": "2026-07-21T08:20:00Z",
+  "account": {
+    "id": "ACC-9033",
+    "name": "Halcyon Analytics"
+  },
+  "health": {
+    "current": 52,
+    "previous": 66,
+    "delta": -14
+  },
+  "renewal": {
+    "date": "2026-08-20",
+    "daysRemaining": 30,
+    "arrUsd": 121000
+  }
+}

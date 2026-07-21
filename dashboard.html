@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Platform — Observability</title>
+<style>
+  :root {
+    --bg:#f6f7f9; --panel:#fff; --ink:#12161c; --muted:#5d6773; --line:#e3e7ec;
+    --accent:#2f6feb; --ok:#1a7f4b; --warn:#b26a00; --err:#c0342b; --degraded:#7a4fbf;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#0e1116; --panel:#161b22; --ink:#e6edf3; --muted:#8b949e; --line:#26303b;
+           --accent:#589bff; --ok:#3fb950; --warn:#d29922; --err:#f85149; --degraded:#b083f0; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  header{padding:20px 24px;border-bottom:1px solid var(--line);background:var(--panel);
+         display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  h1{font-size:17px;margin:0;font-weight:650;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:13px}
+  .wrap{max-width:1240px;margin:0 auto;padding:20px 24px 60px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px 15px}
+  .stat .n{font-size:22px;font-weight:660;letter-spacing:-.02em}
+  .stat .l{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:18px}
+  @media (max-width:960px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:18px}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+           margin:0;padding:13px 16px;border-bottom:1px solid var(--line);font-weight:620}
+  .card .body{padding:6px 0}
+  .row{padding:11px 16px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;
+       gap:10px;align-items:center;justify-content:space-between}
+  .row:last-child{border-bottom:none}
+  .row:hover{background:color-mix(in srgb,var(--accent) 7%,transparent)}
+  .row.sel{background:color-mix(in srgb,var(--accent) 13%,transparent)}
+  .tid{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+  .pill{display:inline-block;padding:1.5px 8px;border-radius:999px;font-size:11px;font-weight:620;
+        border:1px solid currentColor}
+  .ok{color:var(--ok)} .err{color:var(--err)} .warn{color:var(--warn)} .deg{color:var(--degraded)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;
+     letter-spacing:.05em;padding:9px 16px;border-bottom:1px solid var(--line)}
+  td{padding:9px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .narr{padding:14px 16px}
+  .narr li{margin-bottom:9px}
+  .why{border-left:2.5px solid var(--accent);padding:9px 13px;margin:9px 16px;border-radius:0 7px 7px 0;
+       background:color-mix(in srgb,var(--accent) 7%,transparent)}
+  .why .rule{font-family:var(--mono);font-size:11px;color:var(--accent);font-weight:600}
+  .why .txt{margin-top:3px}
+  .kv{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:5px;word-break:break-word}
+  .empty{padding:26px 16px;color:var(--muted);text-align:center}
+  .fb{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);align-items:center;flex-wrap:wrap}
+  button{font:inherit;font-size:12.5px;font-weight:600;padding:6px 13px;border-radius:7px;
+         border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.p{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.p:hover{opacity:.88;color:#fff}
+  .bar{height:5px;background:var(--line);border-radius:3px;overflow:hidden;min-width:64px;margin-top:4px}
+  .bar i{display:block;height:100%;background:var(--ok)}
+  .bar.low i{background:var(--err)} .bar.mid i{background:var(--warn)}
+  .muted{color:var(--muted)}
+  .note{padding:10px 16px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Agent Platform</h1>
+  <span class="sub">Observability &amp; learning loop · every run logged, every decision explained</span>
+  <span style="flex:1"></span>
+  <button onclick="loadAll()">Refresh</button>
+</header>
+
+<div class="wrap">
+  <div class="stats" id="stats"></div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>Recent agent runs</h2>
+        <div class="body" id="runs"><div class="empty">Loading…</div></div>
+      </div>
+
+      <div class="card">
+        <h2>Agent registry</h2>
+        <div class="body" id="registry"></div>
+      </div>
+
+      <div class="card">
+        <h2>Dead letters</h2>
+        <div class="body" id="dlq"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>Why did this agent do that?</h2>
+        <div id="why"><div class="empty">Select a run to see its reasoning.</div></div>
+      </div>
+
+      <div class="card">
+        <h2>Learning loop — driver precision from human verdicts</h2>
+        <div class="body" id="calib"></div>
+        <div class="note">Drivers below the review threshold are automatically flagged for
+          human verification on the next run. This table is measured, never hand-set.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const get = async p => (await fetch(p)).json();
+let selected = null, lastWhy = null;
+
+function statusClass(s){ return s==='error'?'err':s==='degraded'?'deg':s==='skipped'?'warn':'ok'; }
+
+async function loadAll(){
+  const [runs, reg, dlq, cal] = await Promise.all([
+    get('/traces?limit=40'), get('/registry'), get('/dead-letters?limit=20'), get('/calibration')
+  ]);
+
+  const totalRuns = runs.traces.length;
+  const errored = runs.traces.filter(t => t.errors > 0).length;
+  $('stats').innerHTML = [
+    ['Runs logged', totalRuns],
+    ['Runs with errors', errored],
+    ['Agents registered', reg.agent_count],
+    ['Review overdue', reg.review_due_count],
+    ['Reviewed alerts', cal.summary.reviewed_alerts],
+    ['Overall precision', cal.summary.overall_precision == null ? '—'
+        : Math.round(cal.summary.overall_precision*100)+'%'],
+    ['Dead letters', dlq.dead_letters.length],
+  ].map(([l,n]) => `<div class="stat"><div class="n">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join('');
+
+  $('runs').innerHTML = totalRuns ? runs.traces.map(t => `
+    <div class="row ${selected===t.trace_id?'sel':''}" onclick="showWhy('${t.trace_id}')">
+      <div>
+        <div><b>${esc(t.agent)}</b> <span class="muted">· ${t.steps} steps · ${t.total_ms}ms</span></div>
+        <div class="tid">${esc(t.trace_id)}</div>
+      </div>
+      <span class="pill ${t.errors>0?'err':'ok'}">${t.errors>0?t.errors+' err':'ok'}</span>
+    </div>`).join('') : '<div class="empty">No runs yet. Send a webhook or run <code>runner.py</code>.</div>';
+
+  $('registry').innerHTML = `<table><tr><th>Agent</th><th>Owner</th><th>Subscribes to</th><th>Review</th></tr>${
+    reg.agents.map(a => `<tr>
+      <td><b>${esc(a.name)}</b> <span class="muted">v${esc(a.version)}</span></td>
+      <td>${esc(a.owner_slack)}</td>
+      <td class="tid">${a.subscribes_to.map(esc).join('<br>')}</td>
+      <td><span class="pill ${a.review_due?'err':'ok'}">${a.review_due?'overdue':'ok'}</span>
+          <div class="tid">${a.days_since_review}d ago</div></td>
+    </tr>`).join('')}</table>`;
+
+  $('dlq').innerHTML = dlq.dead_letters.length
+    ? `<table><tr><th>Source</th><th>Reason</th><th>When</th></tr>${dlq.dead_letters.map(d =>
+        `<tr><td>${esc(d.source)}</td><td class="tid">${esc(d.reason)}</td>
+             <td class="tid">${esc(d.ts.slice(11,19))}</td></tr>`).join('')}</table>`
+    : '<div class="empty">Empty — nothing was dropped.</div>';
+
+  $('calib').innerHTML = cal.drivers.length
+    ? `<table><tr><th>Driver</th><th>Verdicts</th><th>Precision</th><th>Status</th></tr>${
+        cal.drivers.map(d => {
+          const pct = Math.round(d.precision*100);
+          const cls = pct<50?'low':pct<75?'mid':'';
+          return `<tr>
+            <td class="tid">${esc(d.driver)}</td>
+            <td>${d.correct}/${d.samples}</td>
+            <td>${pct}%<div class="bar ${cls}"><i style="width:${pct}%"></i></div></td>
+            <td><span class="pill ${d.needs_review?'err':d.trusted?'ok':'warn'}">${
+              d.needs_review?'force review':d.trusted?'trusted':'unproven'}</span></td>
+          </tr>`;}).join('')}</table>`
+    : '<div class="empty">No verdicts recorded yet. Mark a run correct or wrong to start the loop.</div>';
+}
+
+async function showWhy(traceId){
+  selected = traceId;
+  const w = await get(`/traces/${traceId}/why`);
+  lastWhy = w;
+
+  const decisions = w.decisions.map(d => `
+    <div class="why">
+      <div class="rule">${esc(d.step)} → ${esc(d.rule_id)}</div>
+      <div class="txt">${esc(d.because)}</div>
+      <div class="kv">${esc(JSON.stringify(d.inputs))}</div>
+    </div>`).join('');
+
+  const failures = w.failures.length
+    ? `<div class="narr"><b class="err">Failures</b><ul>${
+        w.failures.map(f => `<li class="err">${esc(f.step)}: ${esc(f.error)}</li>`).join('')}</ul></div>`
+    : '';
+
+  $('why').innerHTML = `
+    <div class="narr">
+      <div class="tid">${esc(w.trace_id)} · agent <b>${esc(w.agent)}</b> ·
+           ${w.step_count} steps · $${w.total_cost_usd.toFixed(5)}</div>
+      <ol style="margin:12px 0 0;padding-left:20px">
+        ${w.narrative.map(n => `<li>${esc(n)}</li>`).join('')}
+      </ol>
+    </div>
+    <div style="padding-bottom:6px">${decisions}</div>
+    ${failures}
+    <div class="fb">
+      <span class="muted">Was this alert correct?</span>
+      <button class="p" onclick="sendFeedback('correct')">Correct</button>
+      <button onclick="sendFeedback('wrong')">Wrong</button>
+      <button onclick="sendFeedback('unclear')">Unclear</button>
+      <span id="fbmsg" class="muted"></span>
+    </div>`;
+  loadRunsSelection();
+}
+
+function loadRunsSelection(){
+  document.querySelectorAll('#runs .row').forEach(r => {
+    r.classList.toggle('sel', r.querySelector('.tid')?.textContent === selected);
+  });
+}
+
+async function sendFeedback(verdict){
+  if(!lastWhy) return;
+  // Pull the driver/severity the run actually decided on, so the verdict is
+  // attributed to the same driver the agent predicted.
+  const steps = await get(`/traces/${lastWhy.trace_id}`);
+  const analyse = steps.steps.find(s => s.step === 'analyse');
+  const severity = steps.steps.find(s => s.step === 'severity');
+  const started = steps.steps.find(s => s.step === 'run_started');
+
+  const driver = analyse?.detail?.driver;
+  if(!driver){ $('fbmsg').textContent = 'This run produced no driver to score.'; return; }
+
+  const res = await fetch('/feedback', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      trace_id: lastWhy.trace_id, agent: lastWhy.agent,
+      account_id: started?.detail?.account_id ?? 'unknown',
+      driver,
+      severity: severity?.detail?.decision_inputs?.level ?? 'unknown',
+      verdict, reviewer:'dashboard'
+    })
+  });
+  $('fbmsg').textContent = res.ok ? 'Recorded — calibration updated.' : 'Failed to record.';
+  loadAll();
+}
+
+loadAll();
+setInterval(loadAll, 15000);
+</script>
+</body>
+</html>

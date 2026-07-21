@@ -1,0 +1,9 @@
+# Floors, not pins: this runs on Python 3.11-3.14, and pinning exact versions
+# forced source builds on 3.14. CI pins via the lockfile instead.
+fastapi>=0.115
+uvicorn>=0.34
+pydantic>=2.12
+httpx>=0.28
+PyYAML>=6.0
+python-dotenv>=1.0
+pytest>=8.3

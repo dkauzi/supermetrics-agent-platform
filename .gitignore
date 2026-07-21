@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/
+.DS_Store
+.pytest_cache/
+
+# Personal interview prep, not part of the deliverable.
+docs/JD_COVERAGE.md
