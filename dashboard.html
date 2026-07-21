@@ -91,6 +91,12 @@
       </div>
 
       <div class="card">
+        <h2>Integrations - reliability policy per vendor</h2>
+        <div class="body" id="tools"></div>
+        <div class="note" id="toolsnote"></div>
+      </div>
+
+      <div class="card">
         <h2>Dead letters</h2>
         <div class="body" id="dlq"></div>
       </div>
@@ -129,11 +135,12 @@ let selected = null, lastWhy = null;
 function statusClass(s){ return s==='error'?'err':s==='degraded'?'deg':s==='skipped'?'warn':'ok'; }
 
 async function loadAll(){
-  const [runs, reg, dlq, cal, qual] = await Promise.all([
+  const [runs, reg, dlq, cal, qual, tools] = await Promise.all([
     get('/traces?limit=40'), get('/registry'), get('/dead-letters?limit=20'),
-    get('/calibration'), get('/quality')
+    get('/calibration'), get('/quality'), get('/tools')
   ]);
   renderQuality(qual);
+  renderTools(tools);
 
   const totalRuns = runs.traces.length;
   const errored = runs.traces.filter(t => t.errors > 0).length;
@@ -198,6 +205,37 @@ async function loadAll(){
               d.needs_review?'force review':d.trusted?'trusted':'unproven'}</span></td>
           </tr>`;}).join('')}</table>`
     : '<div class="empty">No verdicts recorded yet. Mark a run correct or wrong to start the loop.</div>';
+}
+
+// Each vendor's call chain, outermost first. Composed from config rather than
+// inherited, which is why Slack and Salesforce can differ without a subclass.
+const POLICY_WHY = {
+  tracing:           'one timed, secret-redacted row per call',
+  idempotency:       'same key, same result, one side effect',
+  circuit_breaker:   'stop calling a vendor that is already down',
+  rate_limit:        'pace ourselves rather than get throttled',
+  retry:             'backoff on timeouts; never retry a 4xx',
+  failure_injection: 'demo hook: prove the failure paths on demand',
+};
+
+function renderTools(t){
+  $('toolsnote').textContent = t.policy_order_note;
+  $('tools').innerHTML = `<table>
+    <tr><th>Vendor</th><th>Policy chain (outermost first)</th><th>Circuit</th><th>Granted to</th></tr>
+    ${t.tools.map(v => `<tr>
+      <td><b>${esc(v.tool)}</b></td>
+      <td>${v.layers.map(l => {
+            const s = Object.entries(l.settings || {}).map(([k,x]) => `${k}=${x}`).join(', ');
+            return `<div><span class="tid">${esc(l.policy)}</span>
+              <span class="muted" style="font-size:11.5px"> - ${esc(POLICY_WHY[l.policy] || '')}</span>
+              ${s ? `<div class="kv">${esc(s)}</div>` : ''}</div>`;
+          }).join('')}</td>
+      <td>${v.circuit_state
+            ? `<span class="pill ${v.circuit_state==='closed'?'ok':'err'}">${esc(v.circuit_state)}</span>`
+            : '<span class="muted">n/a</span>'}</td>
+      <td class="tid">${v.granted_to.map(esc).join('<br>') || '<span class="muted">none</span>'}</td>
+    </tr>`).join('')}
+  </table>`;
 }
 
 function renderQuality(q){

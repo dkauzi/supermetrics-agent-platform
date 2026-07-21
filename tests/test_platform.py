@@ -14,7 +14,8 @@ from pathlib import Path
 import pytest
 
 from agentplatform import build_platform
-from agentplatform.clients.base import ToolClient, ToolError, ToolPermissionError
+from agentplatform.clients import ToolClient, ToolError, ToolPermissionError, build_chain
+from agentplatform.clients.policies import Call, CircuitOpen, TracingPolicy
 from agentplatform.config import load_config
 from agentplatform.events import UnknownEventSource, normalise
 from agentplatform.feedback import Calibration, record_outcome
@@ -158,10 +159,21 @@ class FlakyClient(ToolClient):
         return {"id": "ok-1", "status": "done"}
 
 
+def _chain(transport, policies, settings=None):
+    """Build a policy chain the same way build_toolbelt does."""
+    return build_chain(transport, policies, settings or {})
+
+
+def _invoke(chain, trace, idempotency_key=None, operation="op"):
+    return chain.handle(Call(tool="flaky", operation=operation, payload={},
+                             trace=trace, idempotency_key=idempotency_key))
+
+
 def test_retryable_failure_is_retried_then_succeeds(platform):
     client = FlakyClient(platform.config, fail_times=2)
-    trace = _trace(platform)
-    assert client.call("op", {}, trace)["id"] == "ok-1"
+    chain = _chain(client, ["tracing", "retry"], {"retry": {"max_attempts": 3,
+                                                           "backoff_seconds": 0}})
+    assert _invoke(chain, _trace(platform))["id"] == "ok-1"
     assert client.calls == 3
 
 
@@ -176,17 +188,75 @@ def test_non_retryable_failure_is_not_retried(platform):
             raise ValueError("400 bad request")
 
     client = BadRequest(platform.config)
+    chain = _chain(client, ["tracing", "retry"], {"retry": {"max_attempts": 3,
+                                                            "backoff_seconds": 0}})
     with pytest.raises(ToolError):
-        client.call("op", {}, _trace(platform))
+        _invoke(chain, _trace(platform))
     assert client.calls == 1, "a 4xx must not burn the rate limit on retries"
 
 
 def test_idempotency_key_prevents_second_write(platform):
     client = FlakyClient(platform.config, fail_times=0)
+    chain = _chain(client, ["tracing", "idempotency", "retry"])
     trace = _trace(platform)
-    client.call("op", {}, trace, idempotency_key="k1")
-    client.call("op", {}, trace, idempotency_key="k1")
+    _invoke(chain, trace, idempotency_key="k1")
+    _invoke(chain, trace, idempotency_key="k1")
     assert client.calls == 1
+
+
+def test_calls_without_idempotency_key_are_not_deduplicated(platform):
+    client = FlakyClient(platform.config, fail_times=0)
+    chain = _chain(client, ["idempotency"])
+    trace = _trace(platform)
+    _invoke(chain, trace)
+    _invoke(chain, trace)
+    assert client.calls == 2, "dedupe must be opt-in, never implicit"
+
+
+def test_circuit_opens_after_threshold_and_stops_calling_vendor(platform):
+    class AlwaysDown(ToolClient):
+        name = "down"
+        def __init__(self, config):
+            super().__init__(config)
+            self.calls = 0
+        def _execute(self, operation, payload):
+            self.calls += 1
+            raise TimeoutError("vendor down")
+
+    client = AlwaysDown(platform.config)
+    chain = _chain(client, ["circuit_breaker", "retry"],
+                   {"circuit_breaker": {"failure_threshold": 3, "cooldown_seconds": 60},
+                    "retry": {"max_attempts": 1, "backoff_seconds": 0}})
+    trace = _trace(platform)
+
+    for _ in range(3):
+        with pytest.raises(ToolError):
+            _invoke(chain, trace)
+    assert client.calls == 3
+
+    # Breaker is now open: further calls fail fast without touching the vendor.
+    with pytest.raises(CircuitOpen):
+        _invoke(chain, trace)
+    assert client.calls == 3, "an open circuit must not reach the vendor"
+
+
+def test_policy_chain_is_composed_per_vendor_from_config(platform):
+    described = {d["tool"]: d for d in platform.tools.describe()}
+    salesforce = [layer["policy"] for layer in described["salesforce"]["layers"]]
+    slack = [layer["policy"] for layer in described["slack"]["layers"]]
+
+    # Slack is configured to fail fast: no circuit breaker, no rate limit.
+    assert "circuit_breaker" in salesforce
+    assert "circuit_breaker" not in slack
+    # Vendor overrides layer over defaults rather than replacing them.
+    sf_retry = next(l for l in described["salesforce"]["layers"] if l["policy"] == "retry")
+    assert sf_retry["settings"]["max_attempts"] == 4
+    assert sf_retry["settings"]["backoff_multiplier"] == 2.0
+
+
+def test_unknown_policy_name_fails_loudly(platform):
+    with pytest.raises(ValueError, match="Unknown tool policies"):
+        _chain(FlakyClient(platform.config, 0), ["tracing", "teleportation"])
 
 
 def test_agent_cannot_use_undeclared_tool(platform):
@@ -197,7 +267,7 @@ def test_agent_cannot_use_undeclared_tool(platform):
 
 
 def test_secrets_are_redacted_from_traces():
-    redacted = ToolClient._redact({"api_token": "supersecret", "name": "fine"})
+    redacted = TracingPolicy._redact({"api_token": "supersecret", "name": "fine"})
     assert redacted["api_token"] == "***"
     assert redacted["name"] == "fine"
 

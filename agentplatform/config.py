@@ -58,7 +58,12 @@ def _apply_env_overrides(data: dict[str, Any]) -> dict[str, Any]:
         data.setdefault("platform", {})["warehouse"] = warehouse
 
     if rate := os.getenv("TOOL_FAILURE_INJECTION_RATE"):
-        data.setdefault("tools", {})["failure_injection_rate"] = float(rate)
+        # Injecting failure is itself a policy, so enabling it adds a layer to the
+        # chain rather than a special case inside a vendor client. Where it sits
+        # in the chain is decided in clients/__init__.py, not here.
+        if float(rate) > 0:
+            data.setdefault("tools", {}).setdefault("defaults", {})[
+                "failure_injection"] = {"rate": float(rate)}
 
     return data
 

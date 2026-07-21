@@ -19,6 +19,8 @@ I did not ask for "a renewal risk app." I specified the architecture first - pla
 - Naming the package `platform` shadowed a Python stdlib module. Renamed to `agentplatform`.
 - Pinned dependency versions forced source builds on Python 3.14. I moved to floors and forced wheels.
 - The generated fallback path originally swallowed LLM failures silently. I made every degradation write a `degraded_reason` to the trace - silent degradation is the failure mode that erodes trust in an agent platform fastest.
+- Reliability behaviour started out inherited from a `ToolClient` base class. That meant every vendor got identical policy and adding a circuit breaker for one would mean editing the class all of them share. I refactored it into composable adapters over a transport, assembled per vendor from config. The tests caught the four call sites that assumed the old inheritance, which is exactly what they were for.
+- That refactor surfaced a genuine bug I would have shipped: the failure-injection layer was being inserted *outside* the retry layer, so injected faults were raised above retry and bypassed the very path injection exists to exercise. It now sits innermost, next to the transport. Verified by measurement, not inspection: with 40% of every vendor call failing, 11 of 12 runs still completed and 15 calls were recovered by retry.
 
 ## What I did not delegate
 

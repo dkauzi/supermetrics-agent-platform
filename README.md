@@ -22,13 +22,16 @@ cp .env.example .env          # add OPENROUTER_API_KEY (runs without one, in off
 | LLM entirely unavailable / over budget | Deterministic rules-based analysis takes over. Run marked `degraded`, **the human is still alerted.** |
 | Model deprecated by vendor | Fallback chain in config. No code change. |
 | Salesforce/Slack 5xx or timeout | Retry with backoff; 4xx is *not* retried. Failed alerts go to the DLQ for replay. |
+| A vendor goes down entirely | Circuit breaker opens after N consecutive failures and stops calling it, so retries don't amplify their outage. |
 | Account owner can't be resolved | Falls back to a monitoring channel. An alert is never silently dropped. |
 | Agent raises | Isolated - other agents on the same event still run. |
 | Model is confidently wrong over time | Human verdicts feed a calibration table; low-precision drivers are auto-flagged for review. |
 
 ## Config vs hardcoded
 
-**Config** (`config/*.yaml`, env): model chain, prompt version, all thresholds, severity bands, routing rules and channels, retry/timeout policy, warehouse choice, eval gates, and the entire agent registry (name, owner, subscriptions, tool grants, review cadence).
+**Config** (`config/*.yaml`, env): model chain, prompt version, all thresholds, severity bands, routing rules and channels, warehouse choice, eval gates, the entire agent registry (name, owner, subscriptions, tool grants, review cadence), and the **per-vendor reliability policy chain**.
+
+That last one is worth calling out. Tracing, idempotency, circuit breaking, rate limiting and retry are composable adapters wrapped around a vendor transport, assembled from config, not inherited from a base class. So Salesforce gets pacing and 4 attempts while Slack fails fast with no breaker, without a subclass for each combination. Adding a new cross-cutting concern (request signing, PII scrubbing, response caching) is one class in `clients/policies.py` plus a name in config. `GET /tools` shows the live chain and circuit state per vendor.
 
 **Hardcoded** (deliberately): the pipeline *shape*, the output schema, and the driver taxonomy. These are contracts - if they were config, changing one would silently invalidate every recorded eval result and break the learning loop's ability to compare like with like.
 

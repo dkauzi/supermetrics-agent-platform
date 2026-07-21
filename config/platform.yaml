@@ -31,13 +31,54 @@ llm:
   max_repair_attempts: 1
   daily_cost_budget_usd: 25.0
 
+# Vendor call policies, composed per integration.
+#
+# `policies` is outermost-first and the order is the contract:
+#   tracing         one timed, redacted row per call
+#   idempotency     dedupe before spending a network call at all
+#   circuit_breaker stop hammering a vendor that is already down
+#   rate_limit      pace ourselves rather than get throttled
+#   retry           innermost, so a retry is not re-traced five times
+#
+# A vendor overrides only what it needs and inherits the rest.
 tools:
-  retry:
-    max_attempts: 3
-    backoff_seconds: 0.25
-    backoff_multiplier: 2.0
-  timeout_seconds: 10
-  failure_injection_rate: 0.0
+  defaults:
+    policies: [tracing, idempotency, circuit_breaker, rate_limit, retry]
+    retry:
+      max_attempts: 3
+      backoff_seconds: 0.25
+      backoff_multiplier: 2.0
+    circuit_breaker:
+      failure_threshold: 5
+      cooldown_seconds: 30
+    rate_limit:
+      min_interval_seconds: 0.0
+
+  vendors:
+    salesforce:
+      # Strict per-org API limits, and writes here matter most: pace the calls
+      # and allow one extra attempt before giving up.
+      retry:
+        max_attempts: 4
+      rate_limit:
+        min_interval_seconds: 0.05
+
+    slack:
+      # Notification path. Failing fast is better than holding a run open; a
+      # missed alert is dead-lettered and replayed rather than retried forever.
+      policies: [tracing, idempotency, retry]
+      retry:
+        max_attempts: 2
+        backoff_seconds: 0.2
+
+    gainsight:
+      circuit_breaker:
+        failure_threshold: 4
+
+    zendesk:
+      # Read-only for us, so a lower ceiling is fine.
+      retry:
+        max_attempts: 2
 
 # Output verification. Runs between the model and any system of record.
 verification:

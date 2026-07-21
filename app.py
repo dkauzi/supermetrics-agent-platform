@@ -141,6 +141,30 @@ def account_audit(account_id: str) -> dict[str, Any]:
     }
 
 
+@app.get("/tools")
+def tools() -> dict[str, Any]:
+    """Reliability posture of every vendor integration.
+
+    Each vendor call is wrapped in a chain of policies composed from config, not
+    inherited from a base class, so different vendors can have genuinely
+    different behaviour. This endpoint makes that posture visible instead of
+    leaving it buried in YAML, and reports live circuit-breaker state.
+    """
+    described = platform.tools.describe()
+    grants: dict[str, list[str]] = {}
+    for entry in platform.registry.all():
+        for tool in entry.tools:
+            grants.setdefault(tool, []).append(entry.name)
+
+    return {
+        "tools": [{**item, "granted_to": grants.get(item["tool"], [])} for item in described],
+        "policy_order_note": (
+            "Listed outermost first. Order is the contract: dedupe before spending "
+            "a network call, fail fast when a vendor is down, pace ourselves, then retry."
+        ),
+    }
+
+
 @app.get("/quality")
 def quality() -> dict[str, Any]:
     """What the guardrails caught, and the state of the eval gate.
