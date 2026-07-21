@@ -16,6 +16,8 @@ import pytest
 from agentplatform import build_platform
 from agentplatform.clients import ToolClient, ToolError, ToolPermissionError, build_chain
 from agentplatform.clients.policies import Call, CircuitOpen, TracingPolicy
+from agentplatform.llm import PromptBundle
+from agents.renewal_risk.schemas import ChurnAnalysis
 from agentplatform.config import load_config
 from agentplatform.events import UnknownEventSource, normalise
 from agentplatform.feedback import Calibration, record_outcome
@@ -379,6 +381,43 @@ def test_golden_record_merges_rather_than_overwrites(platform):
     record = platform.warehouse.get_golden_record("ACC-X")
     assert record["data"]["owned_by_other_system"] == "keep me"
     assert record["revision"] == 2
+
+
+# ── LLM cost budget ────────────────────────────────────────────────────────────
+
+def test_spend_is_summed_from_the_same_rows_the_dashboard_shows(platform):
+    trace = _trace(platform)
+    trace.record_cost("test/model", 1000, 500, 0.02)
+    trace.record_cost("test/model", 1000, 500, 0.03)
+    midnight = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0).isoformat()
+    assert platform.warehouse.llm_spend_since(midnight) == pytest.approx(0.05)
+
+
+def test_exhausted_budget_degrades_instead_of_billing_or_failing(platform, monkeypatch):
+    from agentplatform.llm import LLMClient, LLMUnavailable
+
+    monkeypatch.setenv("LLM_MODE", "live")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
+    platform.config.raw["llm"]["daily_cost_budget_usd"] = 0.01
+
+    trace = _trace(platform)
+    trace.record_cost("test/model", 1000, 500, 0.05)  # already over budget
+
+    client = LLMClient(platform.config)
+    bundle = PromptBundle(name="t", version="v1", system="s", user="u")
+
+    # Must refuse before any network call, and refuse in the way callers already
+    # handle, so the alert still reaches a human via the deterministic path.
+    with pytest.raises(LLMUnavailable, match="daily_cost_budget_exhausted"):
+        client.complete_structured(bundle, ChurnAnalysis, trace)
+
+
+def test_no_budget_configured_means_no_ceiling(platform, monkeypatch):
+    from agentplatform.llm import LLMClient
+
+    platform.config.raw["llm"]["daily_cost_budget_usd"] = None
+    assert LLMClient(platform.config)._budget_remaining(_trace(platform)) is None
 
 
 # ── Platform QA agent ──────────────────────────────────────────────────────────

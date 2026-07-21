@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, TypeVar
 
 import httpx
@@ -106,6 +107,16 @@ class LLMClient:
         self.timeout = config.get("llm.timeout_seconds", 30)
         self.max_repair = config.get("llm.max_repair_attempts", 1)
 
+    def _budget_remaining(self, trace: RunTrace) -> float | None:
+        """Spend left in today's budget, or None when no budget is configured."""
+        budget = self.config.get("llm.daily_cost_budget_usd")
+        if not budget:
+            return None
+
+        midnight = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0).isoformat()
+        return float(budget) - trace.warehouse.llm_spend_since(midnight)
+
     def complete_structured(
         self, bundle: PromptBundle, schema: type[T], trace: RunTrace
     ) -> tuple[T, LLMMeta]:
@@ -116,6 +127,20 @@ class LLMClient:
         api_key = openrouter_api_key()
         if not api_key:
             raise LLMUnavailable("no_openrouter_api_key")
+
+        # Budget exhaustion is treated exactly like the model being unavailable:
+        # the caller degrades to deterministic analysis and the human is still
+        # alerted. A runaway spend must never become a silent outage, and it must
+        # never become an unbounded bill either.
+        remaining = self._budget_remaining(trace)
+        if remaining is not None and remaining <= 0:
+            trace.record("llm_budget_exhausted", "degraded",
+                         daily_budget_usd=self.config.get("llm.daily_cost_budget_usd"),
+                         remaining_usd=round(remaining, 4))
+            raise LLMUnavailable(
+                f"daily_cost_budget_exhausted (budget "
+                f"${self.config.get('llm.daily_cost_budget_usd')})"
+            )
 
         errors: list[str] = []
         attempts = 0

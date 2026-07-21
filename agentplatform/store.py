@@ -137,6 +137,9 @@ class Warehouse(ABC):
     @abstractmethod
     def steps_named(self, step: str, limit: int = 100) -> list[dict[str, Any]]: ...
 
+    @abstractmethod
+    def llm_spend_since(self, since_iso: str) -> float: ...
+
 
 class SQLiteWarehouse(Warehouse):
     """Local implementation. Same interface as BigQuery, no external dependency."""
@@ -314,6 +317,19 @@ class SQLiteWarehouse(Warehouse):
             out.append(record)
         return out
 
+    def llm_spend_since(self, since_iso: str) -> float:
+        """Total LLM spend recorded since a timestamp.
+
+        Reads the same trace rows the dashboard shows, so the budget is enforced
+        against the number we report rather than a second counter that can drift.
+        """
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT detail FROM run_steps WHERE step = 'llm_cost' AND ts >= ?",
+                (since_iso,),
+            ).fetchall()
+        return sum(float(json.loads(r["detail"]).get("cost_usd") or 0) for r in rows)
+
     def steps_named(self, step: str, limit: int = 100) -> list[dict[str, Any]]:
         """All occurrences of one step across every run - for guardrail reporting."""
         with self._lock:
@@ -407,6 +423,7 @@ class BigQueryWarehouse(Warehouse):
     def outcomes(self, agent: str | None = None) -> list[dict[str, Any]]: ...
     def traces_for_account(self, account_id: str) -> list[dict[str, Any]]: ...
     def steps_named(self, step: str, limit: int = 100) -> list[dict[str, Any]]: ...
+    def llm_spend_since(self, since_iso: str) -> float: ...
 
 
 def build_warehouse(config: Config) -> Warehouse:
