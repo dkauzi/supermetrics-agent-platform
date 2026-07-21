@@ -175,7 +175,7 @@ def cmd_audit(platform, args) -> int:
 
 def cmd_eval(platform, args) -> int:
     from tests.golden.run_eval import run_eval
-    return run_eval(platform, prompt_version=args.prompt_version)
+    return run_eval(platform, prompt_version=args.prompt_version, samples=args.samples)
 
 
 def main() -> int:
@@ -217,6 +217,8 @@ def main() -> int:
 
     evaluate = sub.add_parser("eval")
     evaluate.add_argument("--prompt-version", default=None)
+    evaluate.add_argument("--samples", type=int, default=3,
+                          help="runs per case; >1 measures stability, not luck")
     evaluate.set_defaults(func=cmd_eval)
 
     args = parser.parse_args()

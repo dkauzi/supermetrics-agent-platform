@@ -100,6 +100,10 @@ eval:
   min_driver_accuracy: 0.6
   # An ungrounded citation is a defect, not a miss - there is no acceptable rate.
   min_grounding_rate: 1.0
+  # Fraction of cases that must return the SAME driver on every sampled run.
+  # A model that answers differently each time on identical input is not usable
+  # for automated action, however good its average looks.
+  min_consistency: 0.8
 
 agents:
   renewal_risk:

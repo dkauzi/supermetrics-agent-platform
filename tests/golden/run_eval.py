@@ -87,7 +87,19 @@ def _score_case(analysis, meta, case: dict[str, Any], facts: dict[str, Any]) -> 
     }
 
 
-def run_eval(platform, prompt_version: str | None = None) -> int:
+def run_eval(platform, prompt_version: str | None = None, samples: int = 3) -> int:
+    """Score each case over `samples` runs, not one.
+
+    An LLM is stochastic, so a single run per case measures luck. This was not
+    theoretical: prompt v3 returned "unknown" on the ambiguous case in one run and
+    a confident "engagement_gap" (0.8) in the next, from identical input. A
+    one-shot eval would have promoted it on the strength of the lucky run.
+
+    So the unit of measurement is the pass RATE per case, and consistency is
+    reported as a first-class metric. A case that passes 2 of 3 times is not a
+    passing case; it is an unstable one, and instability on ambiguous accounts is
+    exactly where false positives come from.
+    """
     from agents.renewal_risk.analysis import analyse, build_facts
 
     cases = json.loads(CASES.read_text())
@@ -99,57 +111,81 @@ def run_eval(platform, prompt_version: str | None = None) -> int:
     active_version = platform.config.get("agents.renewal_risk.prompt_version", "v2")
     mode = llm_mode()
 
+    # Offline the analyser is deterministic, so repeating it only burns time.
+    effective_samples = 1 if mode == "offline" else samples
+
     print(f"\nGolden eval · prompt={active_version} · mode={mode} · "
-          f"models={platform.config.get('llm.model_chain')}")
-    print(f"{len(cases)} cases\n")
-    print(f"{'CASE':<28} {'EXPECTED':<30} {'ACTUAL':<30} {'RESULT'}")
-    print("─" * 104)
+          f"samples={effective_samples} · models={platform.config.get('llm.model_chain')}")
+    print(f"{len(cases)} cases x {effective_samples} runs\n")
+    print(f"{'CASE':<28} {'EXPECTED':<30} {'OBSERVED':<34} {'PASS RATE'}")
+    print("─" * 108)
 
-    results = []
+    results, per_case = [], []
     for case in cases:
-        event = Event(
-            event_id=f"eval-{case['id']}-{datetime.now(timezone.utc).timestamp()}",
-            event_type="health_score.dropped", source="eval",
-            account_id=case["account"]["account_id"],
-            occurred_at=datetime.now(timezone.utc), payload={"eval_case": case["id"]},
-        )
-        platform.warehouse.record_event(event)
-        trace = platform.observability.start_run(event, EVAL_AGENT)
+        runs = []
+        for sample in range(effective_samples):
+            event = Event(
+                event_id=f"eval-{case['id']}-{sample}-{datetime.now(timezone.utc).timestamp()}",
+                event_type="health_score.dropped", source="eval",
+                account_id=case["account"]["account_id"],
+                occurred_at=datetime.now(timezone.utc),
+                payload={"eval_case": case["id"], "sample": sample},
+            )
+            platform.warehouse.record_event(event)
+            trace = platform.observability.start_run(event, EVAL_AGENT)
 
-        facts = build_facts(case["account"], case["health"])
-        ctx = EvalContext(event, trace, platform.warehouse, platform.config, _Entry())
+            facts = build_facts(case["account"], case["health"])
+            ctx = EvalContext(event, trace, platform.warehouse, platform.config, _Entry())
 
-        analysis, meta = analyse(ctx, case["account"], facts, {"eval": True})
-        score = _score_case(analysis, meta, case, facts)
-        trace.finish("ok", summary=f"eval {case['id']}: {score['passed']}")
-        results.append(score)
+            analysis, meta = analyse(ctx, case["account"], facts, {"eval": True})
+            score = _score_case(analysis, meta, case, facts)
+            trace.finish("ok", summary=f"eval {case['id']} #{sample}: {score['passed']}")
+            runs.append(score)
+            results.append(score)
 
-        mark = "PASS" if score["passed"] else "FAIL"
-        detail = "" if score["passed"] else "  " + ",".join(
-            k for k in ("driver_ok", "grounded", "citation_ok", "confidence_ok") if not score[k]
-        )
-        print(f"{score['case']:<28} {score['expected']:<30} {score['actual']:<30} {mark}{detail}")
+        observed = sorted({r["actual"] for r in runs})
+        passes = sum(r["passed"] for r in runs)
+        stable = len(observed) == 1
+
+        per_case.append({
+            "case": case["id"], "expected": case["expected_driver"],
+            "observed": observed, "pass_rate": passes / len(runs),
+            "stable": stable, "runs": len(runs),
+        })
+
+        flag = "" if stable else "  UNSTABLE"
+        print(f"{case['id']:<28} {case['expected_driver']:<30} "
+              f"{','.join(observed)[:34]:<34} {passes}/{len(runs)}{flag}")
 
     total = len(results)
     passed = sum(r["passed"] for r in results)
     driver_accuracy = sum(r["driver_ok"] for r in results) / total
     grounding_rate = sum(r["grounded"] for r in results) / total
+    consistency = sum(c["stable"] for c in per_case) / len(per_case)
     cost = sum(r["cost_usd"] for r in results)
 
-    print("─" * 104)
-    print(f"passed          {passed}/{total}")
+    print("─" * 108)
+    print(f"passed          {passed}/{total} runs")
     print(f"driver accuracy {driver_accuracy:.0%}")
     print(f"grounding rate  {grounding_rate:.0%}   (must be 100% - an ungrounded claim is a defect, not a miss)")
+    print(f"consistency     {consistency:.0%}   (cases giving the same driver on every run)")
     print(f"eval cost       ${cost:.4f}")
 
     min_accuracy = platform.config.get("eval.min_driver_accuracy", 0.6)
     min_grounding = platform.config.get("eval.min_grounding_rate", 1.0)
+    min_consistency = platform.config.get("eval.min_consistency", 0.8)
 
     failures = []
     if driver_accuracy < min_accuracy:
         failures.append(f"driver accuracy {driver_accuracy:.0%} below floor {min_accuracy:.0%}")
     if grounding_rate < min_grounding:
         failures.append(f"grounding rate {grounding_rate:.0%} below floor {min_grounding:.0%}")
+    if effective_samples > 1 and consistency < min_consistency:
+        unstable = [c["case"] for c in per_case if not c["stable"]]
+        failures.append(
+            f"consistency {consistency:.0%} below floor {min_consistency:.0%}; "
+            f"unstable cases: {unstable}"
+        )
 
     # Persist the verdict so the dashboard can show the gate status without
     # anyone having to re-run the eval or read CI logs.
@@ -158,14 +194,22 @@ def run_eval(platform, prompt_version: str | None = None) -> int:
         "ran_at": datetime.now(timezone.utc).isoformat(),
         "prompt_version": active_version,
         "mode": mode,
+        "samples": effective_samples,
         "models": platform.config.get("llm.model_chain"),
         "passed": passed, "total": total,
         "driver_accuracy": round(driver_accuracy, 3),
         "grounding_rate": round(grounding_rate, 3),
+        "consistency": round(consistency, 3),
         "cost_usd": round(cost, 5),
         "gate_passed": not failures,
         "failures": failures,
-        "cases": results,
+        "cases": [
+            {"case": c["case"], "expected": c["expected"],
+             "actual": ",".join(c["observed"]),
+             "passed": c["pass_rate"] == 1.0,
+             "pass_rate": round(c["pass_rate"], 2), "stable": c["stable"]}
+            for c in per_case
+        ],
     }, indent=2))
 
     if failures:
