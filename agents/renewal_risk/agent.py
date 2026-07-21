@@ -99,46 +99,92 @@ def handle(ctx) -> dict[str, Any]:
             f"{ctx.agent_config('min_confidence', 0.55):.0%} minimum"
         )
 
+    if meta.forced_human_review:
+        needs_review = True
+        review_reason = (
+            f"a spend or runaway limit forced the deterministic path "
+            f"({meta.degraded_reason})"
+        )
+
     # 4. Severity is a business rule, not a model output.
     severity = routing.compute_severity(facts, account, ctx.agent_config("severity", []) or [])
     trace.decision("severity", f"band_{severity.rule_index}", severity.because,
                    level=severity.level, **severity.inputs)
 
-    # 5. Writes. Idempotency keys are derived from the event id, so a redelivered
-    #    webhook cannot create duplicate records.
+    # 5. Human approval gate. This is what makes needs_human_review a control
+    #    rather than a label: when we do not trust the prediction we do not write
+    #    it into the systems of record and then apologise later. We ask first.
+    #    The alert itself is never withheld.
+    approval = ctx.agent_config("human_approval", {}) or {}
+    hold_writes = needs_review and approval.get("block_writes_when_flagged", False)
+
+    trace.decision(
+        "write_authority",
+        "held_for_human" if hold_writes else "auto_approved",
+        (f"CRM writes held pending human approval because {review_reason}"
+         if hold_writes else
+         f"Writing to systems of record automatically: {review_reason}"),
+        needs_human_review=needs_review, confidence=confidence,
+        driver=analysis.driver, method=meta.method,
+    )
+
+    # 5b. Writes. Idempotency keys are derived from the event id, so a redelivered
+    #     webhook cannot create duplicate records.
     writes: dict[str, Any] = {}
 
-    with trace.step("write_salesforce") as step:
-        task = ctx.tools.salesforce.call(
-            "create_task",
-            {
-                "account_id": account_id,
-                "subject": f"[{severity.level.upper()}] Renewal risk: {analysis.driver}",
-                "description": analysis.alert_message,
-                "priority": "High" if severity.level in ("critical", "high") else "Normal",
-                "owner": account.get("owner"),
-                "trace_id": trace.trace_id,
-            },
-            idempotency_key=f"{ctx.event.event_id}:sf_task",
-        )
-        writes["salesforce_task_id"] = task["id"]
-        step.set(task_id=task["id"])
+    if hold_writes:
+        with trace.step("request_human_approval") as step:
+            ask = ctx.tools.slack.call(
+                "post_message",
+                {
+                    "channel": approval.get("channel", "#cs-agent-approvals"),
+                    "text": routing.build_approval_request(
+                        account, facts, analysis, confidence, review_reason, trace.trace_id
+                    ),
+                },
+                idempotency_key=f"{ctx.event.event_id}:approval",
+            )
+            writes["approval_request_ts"] = ask["ts"]
+            step.set(channel=approval.get("channel"), reason=review_reason)
+            step.mark_degraded(f"writes_held: {review_reason}")
 
-    with trace.step("write_gainsight") as step:
-        cta = ctx.tools.gainsight.call(
-            "create_cta",
-            {
-                "account_id": account_id,
-                "title": f"Renewal risk: {analysis.driver}",
-                "reason": analysis.driver_explanation,
-                "priority": severity.level,
-                "evidence": [e.model_dump() for e in analysis.evidence],
-                "trace_id": trace.trace_id,
-            },
-            idempotency_key=f"{ctx.event.event_id}:gs_cta",
-        )
-        writes["gainsight_cta_id"] = cta["id"]
-        step.set(cta_id=cta["id"])
+    if hold_writes:
+        # Recorded as skipped, with the reason, so the trace shows the writes were
+        # deliberately withheld rather than lost.
+        trace.record("write_salesforce", SKIPPED, reason="awaiting human approval")
+        trace.record("write_gainsight", SKIPPED, reason="awaiting human approval")
+    else:
+        with trace.step("write_salesforce") as step:
+            task = ctx.tools.salesforce.call(
+                "create_task",
+                {
+                    "account_id": account_id,
+                    "subject": f"[{severity.level.upper()}] Renewal risk: {analysis.driver}",
+                    "description": analysis.alert_message,
+                    "priority": "High" if severity.level in ("critical", "high") else "Normal",
+                    "owner": account.get("owner"),
+                    "trace_id": trace.trace_id,
+                },
+                idempotency_key=f"{ctx.event.event_id}:sf_task",
+            )
+            writes["salesforce_task_id"] = task["id"]
+            step.set(task_id=task["id"])
+
+        with trace.step("write_gainsight") as step:
+            cta = ctx.tools.gainsight.call(
+                "create_cta",
+                {
+                    "account_id": account_id,
+                    "title": f"Renewal risk: {analysis.driver}",
+                    "reason": analysis.driver_explanation,
+                    "priority": severity.level,
+                    "evidence": [e.model_dump() for e in analysis.evidence],
+                    "trace_id": trace.trace_id,
+                },
+                idempotency_key=f"{ctx.event.event_id}:gs_cta",
+            )
+            writes["gainsight_cta_id"] = cta["id"]
+            step.set(cta_id=cta["id"])
 
     # 6. Golden record. This platform owns these fields and stamps provenance on
     #    every write, so no downstream consumer has to guess where they came from.
@@ -155,6 +201,9 @@ def handle(ctx) -> dict[str, Any]:
                 "renewal_risk_confidence": confidence,
                 "renewal_risk_method": meta.method,
                 "renewal_risk_needs_review": needs_review,
+                # Downstream consumers must be able to tell an asserted finding
+                # from one still waiting on a person.
+                "renewal_risk_write_status": "awaiting_approval" if hold_writes else "asserted",
                 "renewal_risk_assessed_at": datetime.now(timezone.utc).isoformat(),
             },
             updated_by=f"{AGENT_NAME}@{ctx.entry.version}",
@@ -197,6 +246,7 @@ def handle(ctx) -> dict[str, Any]:
         "confidence": confidence,
         "method": meta.method,
         "needs_human_review": needs_review,
+        "writes_held_for_approval": hold_writes,
         "channel": decision.channel,
         "routing_rule": decision.rule_id,
         "writes": writes,

@@ -140,6 +140,12 @@ class Warehouse(ABC):
     @abstractmethod
     def llm_spend_since(self, since_iso: str) -> float: ...
 
+    @abstractmethod
+    def count_llm_calls_for_account(self, account_id: str, since_iso: str) -> int: ...
+
+    @abstractmethod
+    def spend_by(self, field: str, since_iso: str) -> dict[str, float]: ...
+
 
 class SQLiteWarehouse(Warehouse):
     """Local implementation. Same interface as BigQuery, no external dependency."""
@@ -330,6 +336,36 @@ class SQLiteWarehouse(Warehouse):
             ).fetchall()
         return sum(float(json.loads(r["detail"]).get("cost_usd") or 0) for r in rows)
 
+    def count_llm_calls_for_account(self, account_id: str, since_iso: str) -> int:
+        """LLM calls made about one account since a timestamp.
+
+        Backs the per-account throttle: a health score that flaps must not be
+        able to spend the whole daily budget on a single customer.
+        """
+        with self._lock:
+            row = self._conn.execute(
+                """SELECT COUNT(*) AS n
+                   FROM run_steps rs JOIN events e ON rs.event_id = e.event_id
+                   WHERE rs.step = 'llm_cost' AND e.account_id = ? AND rs.ts >= ?""",
+                (account_id, since_iso),
+            ).fetchone()
+        return int(row["n"]) if row else 0
+
+    def spend_by(self, field: str, since_iso: str) -> dict[str, float]:
+        """LLM spend grouped by 'agent' or by analysis driver, for cost reporting."""
+        column = "rs.agent" if field == "agent" else "rs.agent"
+        with self._lock:
+            rows = self._conn.execute(
+                f"""SELECT {column} AS k, detail FROM run_steps rs
+                    WHERE rs.step = 'llm_cost' AND rs.ts >= ?""",
+                (since_iso,),
+            ).fetchall()
+        totals: dict[str, float] = {}
+        for row in rows:
+            cost = float(json.loads(row["detail"]).get("cost_usd") or 0)
+            totals[row["k"]] = round(totals.get(row["k"], 0.0) + cost, 6)
+        return totals
+
     def steps_named(self, step: str, limit: int = 100) -> list[dict[str, Any]]:
         """All occurrences of one step across every run - for guardrail reporting."""
         with self._lock:
@@ -424,6 +460,8 @@ class BigQueryWarehouse(Warehouse):
     def traces_for_account(self, account_id: str) -> list[dict[str, Any]]: ...
     def steps_named(self, step: str, limit: int = 100) -> list[dict[str, Any]]: ...
     def llm_spend_since(self, since_iso: str) -> float: ...
+    def count_llm_calls_for_account(self, account_id: str, since_iso: str) -> int: ...
+    def spend_by(self, field: str, since_iso: str) -> dict[str, float]: ...
 
 
 def build_warehouse(config: Config) -> Warehouse:

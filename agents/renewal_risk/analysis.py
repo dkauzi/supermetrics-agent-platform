@@ -16,6 +16,7 @@ from datetime import date, datetime, timezone
 from typing import Any
 
 from agentplatform.feedback import Calibration
+from agentplatform.limits import check_limits
 from agentplatform.llm import LLMUnavailable
 from agentplatform.observability import DEGRADED
 from agentplatform.verifier import verify_grounding
@@ -207,7 +208,20 @@ def analyse(ctx, account: dict[str, Any], facts: dict[str, Any],
     analysis: ChurnAnalysis | None = None
     meta = AnalysisMeta(method="deterministic_fallback", prompt_version=version)
 
+    # Runaway and budget protection, checked before we spend anything. A tripped
+    # limit degrades the analysis and escalates to a human; it never drops the run.
+    limit = check_limits(ctx.warehouse, ctx.config, ctx.event.account_id)
+    ctx.trace.decision(
+        "spend_limits",
+        limit.limit_hit or "within_limits",
+        limit.reason,
+        **limit.as_detail(),
+    )
+
     try:
+        if not limit.allow_llm:
+            raise LLMUnavailable(f"limit:{limit.limit_hit}")
+
         bundle = prompts.build(version, account, facts, trigger)
         ctx.trace.record("prompt_built", "ok", prompt=bundle.fingerprint(),
                          fact_count=len(facts))
@@ -259,5 +273,11 @@ def analyse(ctx, account: dict[str, Any], facts: dict[str, Any],
         needs_human_review=needs_review,
         because=reason,
     )
+
+    # A run that was throttled reached its conclusion without the model, so it
+    # carries the escalation forward regardless of what calibration says.
+    if limit.force_human_review:
+        meta.forced_human_review = True
+        meta.degraded_reason = meta.degraded_reason or f"limit:{limit.limit_hit}"
 
     return analysis, meta

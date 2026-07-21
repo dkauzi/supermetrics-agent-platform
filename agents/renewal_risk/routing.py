@@ -134,6 +134,36 @@ def route(severity: str, account: dict[str, Any],
     )
 
 
+def build_approval_request(account: dict[str, Any], facts: dict[str, Any], analysis: Any,
+                           confidence: float, reason: str, trace_id: str) -> str:
+    """Asked in Slack when the platform will not write on its own judgement.
+
+    Deliberately leads with WHY approval is needed rather than the finding, so a
+    reviewer reads the caveat before the conclusion and is not anchored by it.
+    """
+    evidence = "\n".join(
+        f"  - {item.metric} = {item.value} ({item.interpretation})"
+        for item in analysis.evidence[:3]
+    )
+    return "\n".join([
+        f":hand: *Approval needed before writing to Salesforce and Gainsight*",
+        f"*{account.get('name')}* - ${account.get('arr_usd'):,} ARR, "
+        f"renews in {facts.get('days_to_renewal')} days",
+        "",
+        f"*Why this needs a human:* {reason}",
+        "",
+        f"*Proposed finding:* {analysis.driver} ({confidence:.0%} confidence)",
+        analysis.alert_message,
+        "",
+        "*Evidence:*",
+        evidence,
+        "",
+        "Approve to write this to the CRM, or correct it and the platform learns "
+        "from your verdict.",
+        f"_Trace: {trace_id} - full reasoning at /traces/{trace_id}/why_",
+    ])
+
+
 def build_slack_message(account: dict[str, Any], facts: dict[str, Any], analysis: Any,
                         severity: SeverityDecision, decision: RoutingDecision,
                         needs_review: bool, review_reason: str,

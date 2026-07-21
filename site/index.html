@@ -1,0 +1,2238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Platform - Observability</title>
+<style>
+  :root {
+    --bg:#f6f7f9; --panel:#fff; --ink:#12161c; --muted:#5d6773; --line:#e3e7ec;
+    --accent:#2f6feb; --ok:#1a7f4b; --warn:#b26a00; --err:#c0342b; --degraded:#7a4fbf;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#0e1116; --panel:#161b22; --ink:#e6edf3; --muted:#8b949e; --line:#26303b;
+           --accent:#589bff; --ok:#3fb950; --warn:#d29922; --err:#f85149; --degraded:#b083f0; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  header{padding:20px 24px;border-bottom:1px solid var(--line);background:var(--panel);
+         display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  h1{font-size:17px;margin:0;font-weight:650;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:13px}
+  .wrap{max-width:1240px;margin:0 auto;padding:20px 24px 60px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px 15px}
+  .stat .n{font-size:22px;font-weight:660;letter-spacing:-.02em}
+  .stat .l{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:18px}
+  @media (max-width:960px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:18px}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+           margin:0;padding:13px 16px;border-bottom:1px solid var(--line);font-weight:620}
+  .card .body{padding:6px 0}
+  .row{padding:11px 16px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;
+       gap:10px;align-items:center;justify-content:space-between}
+  .row:last-child{border-bottom:none}
+  .row:hover{background:color-mix(in srgb,var(--accent) 7%,transparent)}
+  .row.sel{background:color-mix(in srgb,var(--accent) 13%,transparent)}
+  .tid{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+  .pill{display:inline-block;padding:1.5px 8px;border-radius:999px;font-size:11px;font-weight:620;
+        border:1px solid currentColor}
+  .ok{color:var(--ok)} .err{color:var(--err)} .warn{color:var(--warn)} .deg{color:var(--degraded)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;
+     letter-spacing:.05em;padding:9px 16px;border-bottom:1px solid var(--line)}
+  td{padding:9px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .narr{padding:14px 16px}
+  .narr li{margin-bottom:9px}
+  .why{border-left:2.5px solid var(--accent);padding:9px 13px;margin:9px 16px;border-radius:0 7px 7px 0;
+       background:color-mix(in srgb,var(--accent) 7%,transparent)}
+  .why .rule{font-family:var(--mono);font-size:11px;color:var(--accent);font-weight:600}
+  .why .txt{margin-top:3px}
+  .kv{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:5px;word-break:break-word}
+  .empty{padding:26px 16px;color:var(--muted);text-align:center}
+  .fb{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);align-items:center;flex-wrap:wrap}
+  button{font:inherit;font-size:12.5px;font-weight:600;padding:6px 13px;border-radius:7px;
+         border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.p{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.p:hover{opacity:.88;color:#fff}
+  .bar{height:5px;background:var(--line);border-radius:3px;overflow:hidden;min-width:64px;margin-top:4px}
+  .bar i{display:block;height:100%;background:var(--ok)}
+  .bar.low i{background:var(--err)} .bar.mid i{background:var(--warn)}
+  .muted{color:var(--muted)}
+  .note{padding:10px 16px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Agent Platform</h1>
+  <span class="sub">Observability &amp; learning loop · every run logged, every decision explained</span>
+  <span style="flex:1"></span>
+  <span id="mode"></span>
+  <button onclick="loadAll()">Refresh</button>
+</header>
+
+<div class="wrap">
+  <div class="stats" id="stats"></div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>Recent agent runs</h2>
+        <div class="body" id="runs"><div class="empty">Loading…</div></div>
+      </div>
+
+      <div class="card">
+        <h2>Agent registry</h2>
+        <div class="body" id="registry"></div>
+      </div>
+
+      <div class="card">
+        <h2>Integrations - reliability policy per vendor</h2>
+        <div class="body" id="tools"></div>
+        <div class="note" id="toolsnote"></div>
+      </div>
+
+      <div class="card">
+        <h2>Dead letters</h2>
+        <div class="body" id="dlq"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>Why did this agent do that?</h2>
+        <div id="why"><div class="empty">Select a run to see its reasoning.</div></div>
+      </div>
+
+      <div class="card">
+        <h2>Cost and runaway protection</h2>
+        <div class="body" id="cost"></div>
+        <div class="note">Past the soft ceiling the platform stops paying for the model and
+          routes runs to a human. It never overspends, and it never silently drops an alert
+          to save money.</div>
+      </div>
+
+      <div class="card">
+        <h2>Guardrails - what the safety net caught</h2>
+        <div class="body" id="quality"></div>
+        <div class="note">The LLM is never trusted directly. Ungrounded citations are rejected
+          and the deterministic analyser takes over - the human still gets alerted, and the
+          override is recorded here rather than hidden.</div>
+      </div>
+
+      <div class="card">
+        <h2>Learning loop - driver precision from human verdicts</h2>
+        <div class="body" id="calib"></div>
+        <div class="note">Drivers below the review threshold are automatically flagged for
+          human verification on the next run. This table is measured, never hand-set.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>window.__SNAPSHOT__ = {
+ "__captured_at": "21 Jul 2026",
+ "/traces": {
+  "traces": [
+   {
+    "trace_id": "tr_c81ae14b899c41b3",
+    "agent": "renewal_risk_eval",
+    "event_id": "eval-ambiguous_must_not_guess-0-1784661503.919277",
+    "started_at": "2026-07-21T19:18:23.921949+00:00",
+    "finished_at": "2026-07-21T19:18:23.928861+00:00",
+    "steps": 6,
+    "errors": 0,
+    "total_ms": 8
+   },
+   {
+    "trace_id": "tr_1d6523c60344486a",
+    "agent": "renewal_risk_eval",
+    "event_id": "eval-integration_regression-0-1784661503.90766",
+    "started_at": "2026-07-21T19:18:23.910658+00:00",
+    "finished_at": "2026-07-21T19:18:23.918116+00:00",
+    "steps": 6,
+    "errors": 0,
+    "total_ms": 8
+   },
+   {
+    "trace_id": "tr_e62ec6661aca4c92",
+    "agent": "renewal_risk_eval",
+    "event_id": "eval-champion_loss_clear-0-1784661503.895634",
+    "started_at": "2026-07-21T19:18:23.898493+00:00",
+    "finished_at": "2026-07-21T19:18:23.906258+00:00",
+    "steps": 6,
+    "errors": 0,
+    "total_ms": 9
+   },
+   {
+    "trace_id": "tr_e9e8fd8d547b44c2",
+    "agent": "renewal_risk_eval",
+    "event_id": "eval-support_burden_clear-0-1784661503.885203",
+    "started_at": "2026-07-21T19:18:23.887732+00:00",
+    "finished_at": "2026-07-21T19:18:23.894393+00:00",
+    "steps": 6,
+    "errors": 0,
+    "total_ms": 8
+   },
+   {
+    "trace_id": "tr_47ed0ae4eb524777",
+    "agent": "renewal_risk_eval",
+    "event_id": "eval-adoption_decline_clear-0-1784661503.874251",
+    "started_at": "2026-07-21T19:18:23.877081+00:00",
+    "finished_at": "2026-07-21T19:18:23.884018+00:00",
+    "steps": 6,
+    "errors": 0,
+    "total_ms": 8
+   },
+   {
+    "trace_id": "tr_a1414902ceaa4792",
+    "agent": "support_escalation",
+    "event_id": "zd-evt-2026-07-21-0044",
+    "started_at": "2026-07-21T19:18:23.849694+00:00",
+    "finished_at": "2026-07-21T19:18:23.858958+00:00",
+    "steps": 7,
+    "errors": 0,
+    "total_ms": 12
+   },
+   {
+    "trace_id": "tr_7430f24c6af54880",
+    "agent": "renewal_risk",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "started_at": "2026-07-21T19:18:23.760903+00:00",
+    "finished_at": "2026-07-21T19:18:23.844724+00:00",
+    "steps": 21,
+    "errors": 0,
+    "total_ms": 164
+   }
+  ]
+ },
+ "/registry": {
+  "agent_count": 3,
+  "enabled_count": 3,
+  "review_due_count": 1,
+  "event_types": [
+   "health_score.dropped",
+   "platform.audit_requested",
+   "renewal.approaching",
+   "support.ticket_spike"
+  ],
+  "agents": [
+   {
+    "name": "renewal_risk",
+    "version": "1.3.0",
+    "description": "Detects accounts whose renewal is approaching while health score is falling, identifies the likely churn driver with supporting evidence, writes the finding to Salesforce and Gainsight, and routes an alert to the account owner.",
+    "owner": "denis.miano",
+    "owner_slack": "@denis",
+    "team": "cs-ai",
+    "subscribes_to": [
+     "health_score.dropped",
+     "renewal.approaching"
+    ],
+    "tools": [
+     "salesforce",
+     "gainsight",
+     "slack"
+    ],
+    "writes_golden_record": true,
+    "last_reviewed": "2026-07-14",
+    "days_since_review": 7,
+    "review_due": false,
+    "enabled": true
+   },
+   {
+    "name": "support_escalation",
+    "version": "0.2.0",
+    "description": "Flags accounts accumulating high-priority Zendesk tickets so CS sees a support problem before it becomes a renewal problem.",
+    "owner": "jordon.lacken",
+    "owner_slack": "@jordon",
+    "team": "support-ai",
+    "subscribes_to": [
+     "support.ticket_spike"
+    ],
+    "tools": [
+     "zendesk",
+     "slack"
+    ],
+    "writes_golden_record": false,
+    "last_reviewed": "2026-01-10",
+    "days_since_review": 192,
+    "review_due": true,
+    "enabled": true
+   },
+   {
+    "name": "platform_qa",
+    "version": "1.0.0",
+    "description": "Audits the platform against its own contract: every agent owned and reviewed on schedule, dead-letter queue empty, golden-eval gate green, LLM fallback rate within bounds, and no churn driver below its precision floor.",
+    "owner": "denis.miano",
+    "owner_slack": "@denis",
+    "team": "platform",
+    "subscribes_to": [
+     "platform.audit_requested"
+    ],
+    "tools": [
+     "slack"
+    ],
+    "writes_golden_record": false,
+    "last_reviewed": "2026-07-21",
+    "days_since_review": 0,
+    "review_due": false,
+    "enabled": true
+   }
+  ]
+ },
+ "/dead-letters": {
+  "dead_letters": [
+   {
+    "id": 2,
+    "source": "hubspot",
+    "reason": "unknown_source: No normaliser for source 'hubspot'. Known: ['gainsight', 'platform', 'salesforce', 'zendesk']",
+    "payload": {
+     "whatever": true
+    },
+    "ts": "2026-07-21T19:18:23.861782+00:00",
+    "guarded": true
+   },
+   {
+    "id": 1,
+    "source": "gainsight",
+    "reason": "missing_account_id",
+    "payload": {
+     "eventId": "broken-1",
+     "health": {
+      "current": 20
+     }
+    },
+    "ts": "2026-07-21T19:18:23.860358+00:00",
+    "guarded": true
+   }
+  ],
+  "needs_triage": 0,
+  "guarded_rejections": 2
+ },
+ "/calibration": {
+  "summary": {
+   "agent": "renewal_risk",
+   "reviewed_alerts": 1,
+   "overall_precision": 1.0,
+   "drivers_tracked": 1,
+   "drivers_needing_review": [],
+   "drivers_trusted": [],
+   "min_samples_to_act": 5
+  },
+  "drivers": [
+   {
+    "driver": "adoption_decline",
+    "samples": 1,
+    "correct": 1,
+    "precision": 1.0,
+    "confident": false,
+    "trusted": false,
+    "needs_review": false
+   }
+  ]
+ },
+ "/quality": {
+  "eval": {
+   "ran_at": "2026-07-21T19:18:23.930600+00:00",
+   "prompt_version": "v2",
+   "mode": "offline",
+   "samples": 1,
+   "models": [
+    "anthropic/claude-sonnet-4.5",
+    "openai/gpt-4o-mini",
+    "google/gemini-2.0-flash-001"
+   ],
+   "passed": 5,
+   "total": 5,
+   "driver_accuracy": 1.0,
+   "grounding_rate": 1.0,
+   "consistency": 1.0,
+   "cost_usd": 0.0,
+   "gate_passed": true,
+   "failures": [],
+   "cases": [
+    {
+     "case": "adoption_decline_clear",
+     "expected": "adoption_decline",
+     "actual": "adoption_decline",
+     "passed": true,
+     "pass_rate": 1.0,
+     "stable": true
+    },
+    {
+     "case": "support_burden_clear",
+     "expected": "support_burden",
+     "actual": "support_burden",
+     "passed": true,
+     "pass_rate": 1.0,
+     "stable": true
+    },
+    {
+     "case": "champion_loss_clear",
+     "expected": "champion_loss",
+     "actual": "champion_loss",
+     "passed": true,
+     "pass_rate": 1.0,
+     "stable": true
+    },
+    {
+     "case": "integration_regression",
+     "expected": "data_integration_regression",
+     "actual": "data_integration_regression",
+     "passed": true,
+     "pass_rate": 1.0,
+     "stable": true
+    },
+    {
+     "case": "ambiguous_must_not_guess",
+     "expected": "unknown",
+     "actual": "unknown",
+     "passed": true,
+     "pass_rate": 1.0,
+     "stable": true
+    }
+   ]
+  },
+  "analysis_runs": 1,
+  "llm_runs": 0,
+  "fallback_runs": 1,
+  "fallback_rate": 1.0,
+  "grounding_checks": 0,
+  "grounding_rejections": 0,
+  "recent_fallbacks": [
+   {
+    "trace_id": "tr_7430f24c6af54880",
+    "ts": "2026-07-21T19:18:23.794315+00:00",
+    "reason": "llm_offline_mode",
+    "driver": "adoption_decline",
+    "why_url": "/traces/tr_7430f24c6af54880/why"
+   }
+  ],
+  "recent_grounding_rejections": []
+ },
+ "/tools": {
+  "tools": [
+   {
+    "tool": "salesforce",
+    "layers": [
+     {
+      "policy": "tracing",
+      "settings": {}
+     },
+     {
+      "policy": "idempotency",
+      "settings": {}
+     },
+     {
+      "policy": "circuit_breaker",
+      "settings": {
+       "failure_threshold": 5,
+       "cooldown_seconds": 30
+      }
+     },
+     {
+      "policy": "rate_limit",
+      "settings": {
+       "min_interval_seconds": 0.05
+      }
+     },
+     {
+      "policy": "retry",
+      "settings": {
+       "max_attempts": 4,
+       "backoff_seconds": 0.25,
+       "backoff_multiplier": 2.0
+      }
+     }
+    ],
+    "circuit_state": "closed",
+    "granted_to": [
+     "renewal_risk"
+    ]
+   },
+   {
+    "tool": "gainsight",
+    "layers": [
+     {
+      "policy": "tracing",
+      "settings": {}
+     },
+     {
+      "policy": "idempotency",
+      "settings": {}
+     },
+     {
+      "policy": "circuit_breaker",
+      "settings": {
+       "failure_threshold": 4,
+       "cooldown_seconds": 30
+      }
+     },
+     {
+      "policy": "rate_limit",
+      "settings": {
+       "min_interval_seconds": 0.0
+      }
+     },
+     {
+      "policy": "retry",
+      "settings": {
+       "max_attempts": 3,
+       "backoff_seconds": 0.25,
+       "backoff_multiplier": 2.0
+      }
+     }
+    ],
+    "circuit_state": "closed",
+    "granted_to": [
+     "renewal_risk"
+    ]
+   },
+   {
+    "tool": "zendesk",
+    "layers": [
+     {
+      "policy": "tracing",
+      "settings": {}
+     },
+     {
+      "policy": "idempotency",
+      "settings": {}
+     },
+     {
+      "policy": "circuit_breaker",
+      "settings": {
+       "failure_threshold": 5,
+       "cooldown_seconds": 30
+      }
+     },
+     {
+      "policy": "rate_limit",
+      "settings": {
+       "min_interval_seconds": 0.0
+      }
+     },
+     {
+      "policy": "retry",
+      "settings": {
+       "max_attempts": 2,
+       "backoff_seconds": 0.25,
+       "backoff_multiplier": 2.0
+      }
+     }
+    ],
+    "circuit_state": "closed",
+    "granted_to": [
+     "support_escalation"
+    ]
+   },
+   {
+    "tool": "slack",
+    "layers": [
+     {
+      "policy": "tracing",
+      "settings": {}
+     },
+     {
+      "policy": "idempotency",
+      "settings": {}
+     },
+     {
+      "policy": "retry",
+      "settings": {
+       "max_attempts": 2,
+       "backoff_seconds": 0.2,
+       "backoff_multiplier": 2.0
+      }
+     }
+    ],
+    "circuit_state": null,
+    "granted_to": [
+     "renewal_risk",
+     "support_escalation",
+     "platform_qa"
+    ]
+   }
+  ],
+  "policy_order_note": "Listed outermost first. Order is the contract: dedupe before spending a network call, fail fast when a vendor is down, pace ourselves, then retry."
+ },
+ "/cost": {
+  "daily_budget_usd": 25.0,
+  "soft_ceiling_usd": 22.5,
+  "spent_today_usd": 0,
+  "remaining_usd": 25.0,
+  "budget_used_pct": 0.0,
+  "throttled": false,
+  "llm_calls": 0,
+  "cost_per_analysis_usd": null,
+  "projected_monthly_usd": 0.0,
+  "by_agent": {},
+  "limits": {
+   "max_llm_calls_per_account_per_hour": 5,
+   "human_review_reserve_ratio": 0.9
+  },
+  "throttled_runs": 0,
+  "recent_throttled": []
+ },
+ "/traces/tr_c81ae14b899c41b3": {
+  "trace_id": "tr_c81ae14b899c41b3",
+  "steps": [
+   {
+    "id": 53,
+    "trace_id": "tr_c81ae14b899c41b3",
+    "event_id": "eval-ambiguous_must_not_guess-0-1784661503.919277",
+    "agent": "renewal_risk_eval",
+    "seq": 1,
+    "step": "run_started",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "event_type": "health_score.dropped",
+     "source": "eval",
+     "account_id": "EVAL-5"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.921949+00:00"
+   },
+   {
+    "id": 54,
+    "trace_id": "tr_c81ae14b899c41b3",
+    "event_id": "eval-ambiguous_must_not_guess-0-1784661503.919277",
+    "agent": "renewal_risk_eval",
+    "seq": 2,
+    "step": "spend_limits",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "rule_id": "within_limits",
+     "because": "within per-account and daily limits",
+     "decision_inputs": {
+      "allow_llm": true,
+      "reason": "within per-account and daily limits",
+      "limit_hit": null,
+      "force_human_review": false
+     }
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.923610+00:00"
+   },
+   {
+    "id": 55,
+    "trace_id": "tr_c81ae14b899c41b3",
+    "event_id": "eval-ambiguous_must_not_guess-0-1784661503.919277",
+    "agent": "renewal_risk_eval",
+    "seq": 3,
+    "step": "prompt_built",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "prompt": "renewal_risk.churn_driver@v2",
+     "fact_count": 26
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.925225+00:00"
+   },
+   {
+    "id": 56,
+    "trace_id": "tr_c81ae14b899c41b3",
+    "event_id": "eval-ambiguous_must_not_guess-0-1784661503.919277",
+    "agent": "renewal_risk_eval",
+    "seq": 4,
+    "step": "llm_analysis",
+    "status": "degraded",
+    "latency_ms": null,
+    "detail": {
+     "degraded_reason": "llm_offline_mode"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.926413+00:00"
+   },
+   {
+    "id": 57,
+    "trace_id": "tr_c81ae14b899c41b3",
+    "event_id": "eval-ambiguous_must_not_guess-0-1784661503.919277",
+    "agent": "renewal_risk_eval",
+    "seq": 5,
+    "step": "calibration_applied",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "driver": "unknown",
+     "raw_confidence": 0.25,
+     "calibrated_confidence": 0.25,
+     "multiplier": 1.0,
+     "needs_human_review": false,
+     "because": "no outcome history for driver 'unknown' - treated as unproven"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.927639+00:00"
+   },
+   {
+    "id": 58,
+    "trace_id": "tr_c81ae14b899c41b3",
+    "event_id": "eval-ambiguous_must_not_guess-0-1784661503.919277",
+    "agent": "renewal_risk_eval",
+    "seq": 6,
+    "step": "run_finished",
+    "status": "ok",
+    "latency_ms": 8,
+    "detail": {
+     "summary": "eval ambiguous_must_not_guess #0: True",
+     "total_cost_usd": 0.0
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.928861+00:00"
+   }
+  ]
+ },
+ "/traces/tr_c81ae14b899c41b3/why": {
+  "trace_id": "tr_c81ae14b899c41b3",
+  "found": true,
+  "agent": "renewal_risk_eval",
+  "event_id": "eval-ambiguous_must_not_guess-0-1784661503.919277",
+  "narrative": [
+   "Woken by a 'health_score.dropped' event from eval for account EVAL-5.",
+   "within per-account and daily limits (rule: within_limits)",
+   "Step 'llm_analysis' completed in degraded mode: llm_offline_mode",
+   "Run finished with status 'ok' in 8ms."
+  ],
+  "decisions": [
+   {
+    "step": "spend_limits",
+    "rule_id": "within_limits",
+    "because": "within per-account and daily limits",
+    "inputs": {
+     "allow_llm": true,
+     "reason": "within per-account and daily limits",
+     "limit_hit": null,
+     "force_human_review": false
+    }
+   }
+  ],
+  "failures": [],
+  "total_cost_usd": 0.0,
+  "step_count": 6
+ },
+ "/traces/tr_1d6523c60344486a": {
+  "trace_id": "tr_1d6523c60344486a",
+  "steps": [
+   {
+    "id": 47,
+    "trace_id": "tr_1d6523c60344486a",
+    "event_id": "eval-integration_regression-0-1784661503.90766",
+    "agent": "renewal_risk_eval",
+    "seq": 1,
+    "step": "run_started",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "event_type": "health_score.dropped",
+     "source": "eval",
+     "account_id": "EVAL-4"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.910658+00:00"
+   },
+   {
+    "id": 48,
+    "trace_id": "tr_1d6523c60344486a",
+    "event_id": "eval-integration_regression-0-1784661503.90766",
+    "agent": "renewal_risk_eval",
+    "seq": 2,
+    "step": "spend_limits",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "rule_id": "within_limits",
+     "because": "within per-account and daily limits",
+     "decision_inputs": {
+      "allow_llm": true,
+      "reason": "within per-account and daily limits",
+      "limit_hit": null,
+      "force_human_review": false
+     }
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.912323+00:00"
+   },
+   {
+    "id": 49,
+    "trace_id": "tr_1d6523c60344486a",
+    "event_id": "eval-integration_regression-0-1784661503.90766",
+    "agent": "renewal_risk_eval",
+    "seq": 3,
+    "step": "prompt_built",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "prompt": "renewal_risk.churn_driver@v2",
+     "fact_count": 26
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.914347+00:00"
+   },
+   {
+    "id": 50,
+    "trace_id": "tr_1d6523c60344486a",
+    "event_id": "eval-integration_regression-0-1784661503.90766",
+    "agent": "renewal_risk_eval",
+    "seq": 4,
+    "step": "llm_analysis",
+    "status": "degraded",
+    "latency_ms": null,
+    "detail": {
+     "degraded_reason": "llm_offline_mode"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.915652+00:00"
+   },
+   {
+    "id": 51,
+    "trace_id": "tr_1d6523c60344486a",
+    "event_id": "eval-integration_regression-0-1784661503.90766",
+    "agent": "renewal_risk_eval",
+    "seq": 5,
+    "step": "calibration_applied",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "driver": "data_integration_regression",
+     "raw_confidence": 0.5,
+     "calibrated_confidence": 0.5,
+     "multiplier": 1.0,
+     "needs_human_review": false,
+     "because": "no outcome history for driver 'data_integration_regression' - treated as unproven"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.916951+00:00"
+   },
+   {
+    "id": 52,
+    "trace_id": "tr_1d6523c60344486a",
+    "event_id": "eval-integration_regression-0-1784661503.90766",
+    "agent": "renewal_risk_eval",
+    "seq": 6,
+    "step": "run_finished",
+    "status": "ok",
+    "latency_ms": 8,
+    "detail": {
+     "summary": "eval integration_regression #0: True",
+     "total_cost_usd": 0.0
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.918116+00:00"
+   }
+  ]
+ },
+ "/traces/tr_1d6523c60344486a/why": {
+  "trace_id": "tr_1d6523c60344486a",
+  "found": true,
+  "agent": "renewal_risk_eval",
+  "event_id": "eval-integration_regression-0-1784661503.90766",
+  "narrative": [
+   "Woken by a 'health_score.dropped' event from eval for account EVAL-4.",
+   "within per-account and daily limits (rule: within_limits)",
+   "Step 'llm_analysis' completed in degraded mode: llm_offline_mode",
+   "Run finished with status 'ok' in 8ms."
+  ],
+  "decisions": [
+   {
+    "step": "spend_limits",
+    "rule_id": "within_limits",
+    "because": "within per-account and daily limits",
+    "inputs": {
+     "allow_llm": true,
+     "reason": "within per-account and daily limits",
+     "limit_hit": null,
+     "force_human_review": false
+    }
+   }
+  ],
+  "failures": [],
+  "total_cost_usd": 0.0,
+  "step_count": 6
+ },
+ "/traces/tr_e62ec6661aca4c92": {
+  "trace_id": "tr_e62ec6661aca4c92",
+  "steps": [
+   {
+    "id": 41,
+    "trace_id": "tr_e62ec6661aca4c92",
+    "event_id": "eval-champion_loss_clear-0-1784661503.895634",
+    "agent": "renewal_risk_eval",
+    "seq": 1,
+    "step": "run_started",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "event_type": "health_score.dropped",
+     "source": "eval",
+     "account_id": "EVAL-3"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.898493+00:00"
+   },
+   {
+    "id": 42,
+    "trace_id": "tr_e62ec6661aca4c92",
+    "event_id": "eval-champion_loss_clear-0-1784661503.895634",
+    "agent": "renewal_risk_eval",
+    "seq": 2,
+    "step": "spend_limits",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "rule_id": "within_limits",
+     "because": "within per-account and daily limits",
+     "decision_inputs": {
+      "allow_llm": true,
+      "reason": "within per-account and daily limits",
+      "limit_hit": null,
+      "force_human_review": false
+     }
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.899887+00:00"
+   },
+   {
+    "id": 43,
+    "trace_id": "tr_e62ec6661aca4c92",
+    "event_id": "eval-champion_loss_clear-0-1784661503.895634",
+    "agent": "renewal_risk_eval",
+    "seq": 3,
+    "step": "prompt_built",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "prompt": "renewal_risk.churn_driver@v2",
+     "fact_count": 26
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.901344+00:00"
+   },
+   {
+    "id": 44,
+    "trace_id": "tr_e62ec6661aca4c92",
+    "event_id": "eval-champion_loss_clear-0-1784661503.895634",
+    "agent": "renewal_risk_eval",
+    "seq": 4,
+    "step": "llm_analysis",
+    "status": "degraded",
+    "latency_ms": null,
+    "detail": {
+     "degraded_reason": "llm_offline_mode"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.903070+00:00"
+   },
+   {
+    "id": 45,
+    "trace_id": "tr_e62ec6661aca4c92",
+    "event_id": "eval-champion_loss_clear-0-1784661503.895634",
+    "agent": "renewal_risk_eval",
+    "seq": 5,
+    "step": "calibration_applied",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "driver": "champion_loss",
+     "raw_confidence": 0.55,
+     "calibrated_confidence": 0.55,
+     "multiplier": 1.0,
+     "needs_human_review": false,
+     "because": "no outcome history for driver 'champion_loss' - treated as unproven"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.904888+00:00"
+   },
+   {
+    "id": 46,
+    "trace_id": "tr_e62ec6661aca4c92",
+    "event_id": "eval-champion_loss_clear-0-1784661503.895634",
+    "agent": "renewal_risk_eval",
+    "seq": 6,
+    "step": "run_finished",
+    "status": "ok",
+    "latency_ms": 9,
+    "detail": {
+     "summary": "eval champion_loss_clear #0: True",
+     "total_cost_usd": 0.0
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.906258+00:00"
+   }
+  ]
+ },
+ "/traces/tr_e62ec6661aca4c92/why": {
+  "trace_id": "tr_e62ec6661aca4c92",
+  "found": true,
+  "agent": "renewal_risk_eval",
+  "event_id": "eval-champion_loss_clear-0-1784661503.895634",
+  "narrative": [
+   "Woken by a 'health_score.dropped' event from eval for account EVAL-3.",
+   "within per-account and daily limits (rule: within_limits)",
+   "Step 'llm_analysis' completed in degraded mode: llm_offline_mode",
+   "Run finished with status 'ok' in 9ms."
+  ],
+  "decisions": [
+   {
+    "step": "spend_limits",
+    "rule_id": "within_limits",
+    "because": "within per-account and daily limits",
+    "inputs": {
+     "allow_llm": true,
+     "reason": "within per-account and daily limits",
+     "limit_hit": null,
+     "force_human_review": false
+    }
+   }
+  ],
+  "failures": [],
+  "total_cost_usd": 0.0,
+  "step_count": 6
+ },
+ "/traces/tr_e9e8fd8d547b44c2": {
+  "trace_id": "tr_e9e8fd8d547b44c2",
+  "steps": [
+   {
+    "id": 35,
+    "trace_id": "tr_e9e8fd8d547b44c2",
+    "event_id": "eval-support_burden_clear-0-1784661503.885203",
+    "agent": "renewal_risk_eval",
+    "seq": 1,
+    "step": "run_started",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "event_type": "health_score.dropped",
+     "source": "eval",
+     "account_id": "EVAL-2"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.887732+00:00"
+   },
+   {
+    "id": 36,
+    "trace_id": "tr_e9e8fd8d547b44c2",
+    "event_id": "eval-support_burden_clear-0-1784661503.885203",
+    "agent": "renewal_risk_eval",
+    "seq": 2,
+    "step": "spend_limits",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "rule_id": "within_limits",
+     "because": "within per-account and daily limits",
+     "decision_inputs": {
+      "allow_llm": true,
+      "reason": "within per-account and daily limits",
+      "limit_hit": null,
+      "force_human_review": false
+     }
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.889223+00:00"
+   },
+   {
+    "id": 37,
+    "trace_id": "tr_e9e8fd8d547b44c2",
+    "event_id": "eval-support_burden_clear-0-1784661503.885203",
+    "agent": "renewal_risk_eval",
+    "seq": 3,
+    "step": "prompt_built",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "prompt": "renewal_risk.churn_driver@v2",
+     "fact_count": 26
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.890574+00:00"
+   },
+   {
+    "id": 38,
+    "trace_id": "tr_e9e8fd8d547b44c2",
+    "event_id": "eval-support_burden_clear-0-1784661503.885203",
+    "agent": "renewal_risk_eval",
+    "seq": 4,
+    "step": "llm_analysis",
+    "status": "degraded",
+    "latency_ms": null,
+    "detail": {
+     "degraded_reason": "llm_offline_mode"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.891874+00:00"
+   },
+   {
+    "id": 39,
+    "trace_id": "tr_e9e8fd8d547b44c2",
+    "event_id": "eval-support_burden_clear-0-1784661503.885203",
+    "agent": "renewal_risk_eval",
+    "seq": 5,
+    "step": "calibration_applied",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "driver": "support_burden",
+     "raw_confidence": 0.58,
+     "calibrated_confidence": 0.58,
+     "multiplier": 1.0,
+     "needs_human_review": false,
+     "because": "no outcome history for driver 'support_burden' - treated as unproven"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.893183+00:00"
+   },
+   {
+    "id": 40,
+    "trace_id": "tr_e9e8fd8d547b44c2",
+    "event_id": "eval-support_burden_clear-0-1784661503.885203",
+    "agent": "renewal_risk_eval",
+    "seq": 6,
+    "step": "run_finished",
+    "status": "ok",
+    "latency_ms": 8,
+    "detail": {
+     "summary": "eval support_burden_clear #0: True",
+     "total_cost_usd": 0.0
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.894393+00:00"
+   }
+  ]
+ },
+ "/traces/tr_e9e8fd8d547b44c2/why": {
+  "trace_id": "tr_e9e8fd8d547b44c2",
+  "found": true,
+  "agent": "renewal_risk_eval",
+  "event_id": "eval-support_burden_clear-0-1784661503.885203",
+  "narrative": [
+   "Woken by a 'health_score.dropped' event from eval for account EVAL-2.",
+   "within per-account and daily limits (rule: within_limits)",
+   "Step 'llm_analysis' completed in degraded mode: llm_offline_mode",
+   "Run finished with status 'ok' in 8ms."
+  ],
+  "decisions": [
+   {
+    "step": "spend_limits",
+    "rule_id": "within_limits",
+    "because": "within per-account and daily limits",
+    "inputs": {
+     "allow_llm": true,
+     "reason": "within per-account and daily limits",
+     "limit_hit": null,
+     "force_human_review": false
+    }
+   }
+  ],
+  "failures": [],
+  "total_cost_usd": 0.0,
+  "step_count": 6
+ },
+ "/traces/tr_47ed0ae4eb524777": {
+  "trace_id": "tr_47ed0ae4eb524777",
+  "steps": [
+   {
+    "id": 29,
+    "trace_id": "tr_47ed0ae4eb524777",
+    "event_id": "eval-adoption_decline_clear-0-1784661503.874251",
+    "agent": "renewal_risk_eval",
+    "seq": 1,
+    "step": "run_started",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "event_type": "health_score.dropped",
+     "source": "eval",
+     "account_id": "EVAL-1"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.877081+00:00"
+   },
+   {
+    "id": 30,
+    "trace_id": "tr_47ed0ae4eb524777",
+    "event_id": "eval-adoption_decline_clear-0-1784661503.874251",
+    "agent": "renewal_risk_eval",
+    "seq": 2,
+    "step": "spend_limits",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "rule_id": "within_limits",
+     "because": "within per-account and daily limits",
+     "decision_inputs": {
+      "allow_llm": true,
+      "reason": "within per-account and daily limits",
+      "limit_hit": null,
+      "force_human_review": false
+     }
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.878684+00:00"
+   },
+   {
+    "id": 31,
+    "trace_id": "tr_47ed0ae4eb524777",
+    "event_id": "eval-adoption_decline_clear-0-1784661503.874251",
+    "agent": "renewal_risk_eval",
+    "seq": 3,
+    "step": "prompt_built",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "prompt": "renewal_risk.churn_driver@v2",
+     "fact_count": 26
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.879918+00:00"
+   },
+   {
+    "id": 32,
+    "trace_id": "tr_47ed0ae4eb524777",
+    "event_id": "eval-adoption_decline_clear-0-1784661503.874251",
+    "agent": "renewal_risk_eval",
+    "seq": 4,
+    "step": "llm_analysis",
+    "status": "degraded",
+    "latency_ms": null,
+    "detail": {
+     "degraded_reason": "llm_offline_mode"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.881339+00:00"
+   },
+   {
+    "id": 33,
+    "trace_id": "tr_47ed0ae4eb524777",
+    "event_id": "eval-adoption_decline_clear-0-1784661503.874251",
+    "agent": "renewal_risk_eval",
+    "seq": 5,
+    "step": "calibration_applied",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "driver": "adoption_decline",
+     "raw_confidence": 0.6,
+     "calibrated_confidence": 0.6,
+     "multiplier": 1.0,
+     "needs_human_review": false,
+     "because": "no outcome history for driver 'adoption_decline' - treated as unproven"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.882890+00:00"
+   },
+   {
+    "id": 34,
+    "trace_id": "tr_47ed0ae4eb524777",
+    "event_id": "eval-adoption_decline_clear-0-1784661503.874251",
+    "agent": "renewal_risk_eval",
+    "seq": 6,
+    "step": "run_finished",
+    "status": "ok",
+    "latency_ms": 8,
+    "detail": {
+     "summary": "eval adoption_decline_clear #0: True",
+     "total_cost_usd": 0.0
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.884018+00:00"
+   }
+  ]
+ },
+ "/traces/tr_47ed0ae4eb524777/why": {
+  "trace_id": "tr_47ed0ae4eb524777",
+  "found": true,
+  "agent": "renewal_risk_eval",
+  "event_id": "eval-adoption_decline_clear-0-1784661503.874251",
+  "narrative": [
+   "Woken by a 'health_score.dropped' event from eval for account EVAL-1.",
+   "within per-account and daily limits (rule: within_limits)",
+   "Step 'llm_analysis' completed in degraded mode: llm_offline_mode",
+   "Run finished with status 'ok' in 8ms."
+  ],
+  "decisions": [
+   {
+    "step": "spend_limits",
+    "rule_id": "within_limits",
+    "because": "within per-account and daily limits",
+    "inputs": {
+     "allow_llm": true,
+     "reason": "within per-account and daily limits",
+     "limit_hit": null,
+     "force_human_review": false
+    }
+   }
+  ],
+  "failures": [],
+  "total_cost_usd": 0.0,
+  "step_count": 6
+ },
+ "/traces/tr_a1414902ceaa4792": {
+  "trace_id": "tr_a1414902ceaa4792",
+  "steps": [
+   {
+    "id": 22,
+    "trace_id": "tr_a1414902ceaa4792",
+    "event_id": "zd-evt-2026-07-21-0044",
+    "agent": "support_escalation",
+    "seq": 1,
+    "step": "run_started",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "event_type": "support.ticket_spike",
+     "source": "zendesk",
+     "account_id": "ACC-2201"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.849694+00:00"
+   },
+   {
+    "id": 23,
+    "trace_id": "tr_a1414902ceaa4792",
+    "event_id": "zd-evt-2026-07-21-0044",
+    "agent": "support_escalation",
+    "seq": 2,
+    "step": "zendesk.get_ticket_summary",
+    "status": "ok",
+    "latency_ms": 0,
+    "detail": {
+     "attempt": 1,
+     "request": {
+      "account_id": "ACC-2201"
+     },
+     "response_summary": {}
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.852237+00:00"
+   },
+   {
+    "id": 24,
+    "trace_id": "tr_a1414902ceaa4792",
+    "event_id": "zd-evt-2026-07-21-0044",
+    "agent": "support_escalation",
+    "seq": 3,
+    "step": "fetch_tickets",
+    "status": "ok",
+    "latency_ms": 1,
+    "detail": {
+     "open_tickets": 9,
+     "p1_tickets_30d": 4
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.853335+00:00"
+   },
+   {
+    "id": 25,
+    "trace_id": "tr_a1414902ceaa4792",
+    "event_id": "zd-evt-2026-07-21-0044",
+    "agent": "support_escalation",
+    "seq": 4,
+    "step": "escalation_gate",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "rule_id": "escalate",
+     "because": "4 P1 tickets in 30 days (threshold 2) with CSAT 2.4",
+     "decision_inputs": {
+      "p1_tickets_30d": 4,
+      "csat_30d": 2.4
+     }
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.854710+00:00"
+   },
+   {
+    "id": 26,
+    "trace_id": "tr_a1414902ceaa4792",
+    "event_id": "zd-evt-2026-07-21-0044",
+    "agent": "support_escalation",
+    "seq": 5,
+    "step": "slack.post_message",
+    "status": "ok",
+    "latency_ms": 0,
+    "detail": {
+     "attempt": 1,
+     "request": {
+      "channel": "#support-escalations",
+      "text": "*Support escalation* - account ACC-2201\n4 P1 tickets in the last 30 days, CSAT 2.4, 9 open tickets.\n_Trace: tr_a1414902ceaa4792_"
+     },
+     "response_summary": {
+      "channel": "#support-escalations",
+      "ok": true
+     }
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.856318+00:00"
+   },
+   {
+    "id": 27,
+    "trace_id": "tr_a1414902ceaa4792",
+    "event_id": "zd-evt-2026-07-21-0044",
+    "agent": "support_escalation",
+    "seq": 6,
+    "step": "notify_slack",
+    "status": "ok",
+    "latency_ms": 1,
+    "detail": {
+     "channel": "#support-escalations"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.857665+00:00"
+   },
+   {
+    "id": 28,
+    "trace_id": "tr_a1414902ceaa4792",
+    "event_id": "zd-evt-2026-07-21-0044",
+    "agent": "support_escalation",
+    "seq": 7,
+    "step": "run_finished",
+    "status": "ok",
+    "latency_ms": 10,
+    "detail": {
+     "summary": "escalated ACC-2201: 4 P1 tickets",
+     "total_cost_usd": 0.0
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.858958+00:00"
+   }
+  ]
+ },
+ "/traces/tr_a1414902ceaa4792/why": {
+  "trace_id": "tr_a1414902ceaa4792",
+  "found": true,
+  "agent": "support_escalation",
+  "event_id": "zd-evt-2026-07-21-0044",
+  "narrative": [
+   "Woken by a 'support.ticket_spike' event from zendesk for account ACC-2201.",
+   "4 P1 tickets in 30 days (threshold 2) with CSAT 2.4 (rule: escalate)",
+   "Run finished with status 'ok' in 10ms."
+  ],
+  "decisions": [
+   {
+    "step": "escalation_gate",
+    "rule_id": "escalate",
+    "because": "4 P1 tickets in 30 days (threshold 2) with CSAT 2.4",
+    "inputs": {
+     "p1_tickets_30d": 4,
+     "csat_30d": 2.4
+    }
+   }
+  ],
+  "failures": [],
+  "total_cost_usd": 0.0,
+  "step_count": 7
+ },
+ "/traces/tr_7430f24c6af54880": {
+  "trace_id": "tr_7430f24c6af54880",
+  "steps": [
+   {
+    "id": 1,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 1,
+    "step": "run_started",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "event_type": "health_score.dropped",
+     "source": "gainsight",
+     "account_id": "ACC-4417"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.760903+00:00"
+   },
+   {
+    "id": 2,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 2,
+    "step": "salesforce.get_account",
+    "status": "ok",
+    "latency_ms": 0,
+    "detail": {
+     "attempt": 1,
+     "request": {
+      "account_id": "ACC-4417"
+     },
+     "response_summary": {
+      "id": "ACC-4417"
+     }
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.782256+00:00"
+   },
+   {
+    "id": 3,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 3,
+    "step": "gainsight.get_health",
+    "status": "ok",
+    "latency_ms": 0,
+    "detail": {
+     "attempt": 1,
+     "request": {
+      "account_id": "ACC-4417"
+     },
+     "response_summary": {}
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.783630+00:00"
+   },
+   {
+    "id": 4,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 4,
+    "step": "fetch_context",
+    "status": "ok",
+    "latency_ms": 2,
+    "detail": {
+     "account_name": "Northwind Media Group",
+     "arr_usd": 248000,
+     "fact_count": 27
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.784897+00:00"
+   },
+   {
+    "id": 5,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 5,
+    "step": "entry_gate",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "rule_id": "act",
+     "because": "Renewal in 71 days (within 90) with health score 38 and a change of -33 points",
+     "decision_inputs": {
+      "days_to_renewal": 71,
+      "health_score": 38,
+      "health_score_delta": -33
+     }
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.786091+00:00"
+   },
+   {
+    "id": 6,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 6,
+    "step": "spend_limits",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "rule_id": "within_limits",
+     "because": "within per-account and daily limits",
+     "decision_inputs": {
+      "allow_llm": true,
+      "reason": "within per-account and daily limits",
+      "limit_hit": null,
+      "force_human_review": false
+     }
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.787916+00:00"
+   },
+   {
+    "id": 7,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 7,
+    "step": "prompt_built",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "prompt": "renewal_risk.churn_driver@v2",
+     "fact_count": 27
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.789390+00:00"
+   },
+   {
+    "id": 8,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 8,
+    "step": "llm_analysis",
+    "status": "degraded",
+    "latency_ms": null,
+    "detail": {
+     "degraded_reason": "llm_offline_mode"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.791000+00:00"
+   },
+   {
+    "id": 9,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 9,
+    "step": "calibration_applied",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "driver": "adoption_decline",
+     "raw_confidence": 0.6,
+     "calibrated_confidence": 0.6,
+     "multiplier": 1.0,
+     "needs_human_review": false,
+     "because": "no outcome history for driver 'adoption_decline' - treated as unproven"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.792956+00:00"
+   },
+   {
+    "id": 10,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 10,
+    "step": "analyse",
+    "status": "degraded",
+    "latency_ms": 6,
+    "detail": {
+     "degraded_reason": "llm_offline_mode",
+     "driver": "adoption_decline",
+     "method": "deterministic_fallback",
+     "model": null,
+     "prompt_version": "v2",
+     "confidence": 0.6,
+     "cost_usd": 0.0
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.794315+00:00"
+   },
+   {
+    "id": 11,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 11,
+    "step": "severity",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "rule_id": "band_0",
+     "because": "Severity 'critical' because health_score=38 <= 40 and arr_usd=248000 >= 100000",
+     "decision_inputs": {
+      "level": "critical",
+      "health_score": 38,
+      "arr_usd": 248000,
+      "days_to_renewal": 71
+     }
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.796167+00:00"
+   },
+   {
+    "id": 12,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 12,
+    "step": "write_authority",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "rule_id": "auto_approved",
+     "because": "Writing to systems of record automatically: no outcome history for driver 'adoption_decline' - treated as unproven",
+     "decision_inputs": {
+      "needs_human_review": false,
+      "confidence": 0.6,
+      "driver": "adoption_decline",
+      "method": "deterministic_fallback"
+     }
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.797481+00:00"
+   },
+   {
+    "id": 13,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 13,
+    "step": "salesforce.create_task",
+    "status": "ok",
+    "latency_ms": 33,
+    "detail": {
+     "attempt": 1,
+     "request": {
+      "account_id": "ACC-4417",
+      "subject": "[CRITICAL] Renewal risk: adoption_decline",
+      "description": "Churn risk driver: adoption decline. Seat utilisation dropped from 85.8% to 34.2% and health score is now 38. Recommend an adoption review before renewal.",
+      "priority": "High",
+      "owner": "Priya Raman",
+      "trace_id": "tr_7430f24c6af54880"
+     },
+     "response_summary": {
+      "id": "00T095936898834",
+      "status": "created"
+     }
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.832572+00:00"
+   },
+   {
+    "id": 14,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 14,
+    "step": "write_salesforce",
+    "status": "ok",
+    "latency_ms": 35,
+    "detail": {
+     "task_id": "00T095936898834"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.833781+00:00"
+   },
+   {
+    "id": 15,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 15,
+    "step": "gainsight.create_cta",
+    "status": "ok",
+    "latency_ms": 0,
+    "detail": {
+     "attempt": 1,
+     "request": {
+      "account_id": "ACC-4417",
+      "title": "Renewal risk: adoption_decline",
+      "reason": "Seat utilisation fell from 85.8% to 34.2%, so the customer is paying for capacity they no longer use.",
+      "priority": "critical",
+      "evidence": [
+       {
+        "metric": "seat_utilisation_pct",
+        "value": 34.2,
+        "interpretation": "Licensed seats largely unused"
+       },
+       {
+        "metric": "seat_utilisation_90d_ago_pct",
+        "value": 85.8,
+        "interpretation": "Utilisation was far higher 90 days ago"
+       },
+       {
+        "metric": "weekly_active_users",
+        "value": 22,
+        "interpretation": "Weekly active users are low"
+       }
+      ],
+      "trace_id": "tr_7430f24c6af54880"
+     },
+     "response_summary": {
+      "id": "cta_6658239905",
+      "status": "open"
+     }
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.835198+00:00"
+   },
+   {
+    "id": 16,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 16,
+    "step": "write_gainsight",
+    "status": "ok",
+    "latency_ms": 1,
+    "detail": {
+     "cta_id": "cta_6658239905"
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.836851+00:00"
+   },
+   {
+    "id": 17,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 17,
+    "step": "update_golden_record",
+    "status": "ok",
+    "latency_ms": 1,
+    "detail": {
+     "revision": 1
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.839589+00:00"
+   },
+   {
+    "id": 18,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 18,
+    "step": "routing",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "rule_id": "critical_exec_escalation",
+     "because": "Routed to #cs-exec-escalations because rule 'critical_exec_escalation' matched severity=critical in ['critical'] and arr_usd=248000 >= 100000",
+     "decision_inputs": {
+      "channel": "#cs-exec-escalations",
+      "recipients": [
+       "@priya",
+       "@marta"
+      ],
+      "severity": "critical",
+      "arr_usd": 248000,
+      "segment": "enterprise"
+     }
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.841043+00:00"
+   },
+   {
+    "id": 19,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 19,
+    "step": "slack.post_message",
+    "status": "ok",
+    "latency_ms": 0,
+    "detail": {
+     "attempt": 1,
+     "request": {
+      "channel": "#cs-exec-escalations",
+      "text": "@priya @marta *CRITICAL renewal risk* - Northwind Media Group\n\nChurn risk driver: adoption decline. Seat utilisation dropped from 85.8% to 34.2% and health score is now 38. Recommend an adoption revie..."
+     },
+     "response_summary": {
+      "channel": "#cs-exec-escalations",
+      "ok": true
+     }
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.842363+00:00"
+   },
+   {
+    "id": 20,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 20,
+    "step": "notify_slack",
+    "status": "ok",
+    "latency_ms": 1,
+    "detail": {
+     "channel": "#cs-exec-escalations",
+     "recipients": [
+      "@priya",
+      "@marta"
+     ]
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.843451+00:00"
+   },
+   {
+    "id": 21,
+    "trace_id": "tr_7430f24c6af54880",
+    "event_id": "gs-evt-2026-07-21-0001",
+    "agent": "renewal_risk",
+    "seq": 21,
+    "step": "run_finished",
+    "status": "ok",
+    "latency_ms": 85,
+    "detail": {
+     "summary": "critical risk on Northwind Media Group: adoption_decline (60% confidence) -> #cs-exec-escalations",
+     "total_cost_usd": 0.0
+    },
+    "error": null,
+    "ts": "2026-07-21T19:18:23.844724+00:00"
+   }
+  ]
+ },
+ "/traces/tr_7430f24c6af54880/why": {
+  "trace_id": "tr_7430f24c6af54880",
+  "found": true,
+  "agent": "renewal_risk",
+  "event_id": "gs-evt-2026-07-21-0001",
+  "narrative": [
+   "Woken by a 'health_score.dropped' event from gainsight for account ACC-4417.",
+   "Renewal in 71 days (within 90) with health score 38 and a change of -33 points (rule: act)",
+   "within per-account and daily limits (rule: within_limits)",
+   "Step 'llm_analysis' completed in degraded mode: llm_offline_mode",
+   "Step 'analyse' completed in degraded mode: llm_offline_mode",
+   "Severity 'critical' because health_score=38 <= 40 and arr_usd=248000 >= 100000 (rule: band_0)",
+   "Writing to systems of record automatically: no outcome history for driver 'adoption_decline' - treated as unproven (rule: auto_approved)",
+   "Routed to #cs-exec-escalations because rule 'critical_exec_escalation' matched severity=critical in ['critical'] and arr_usd=248000 >= 100000 (rule: critical_exec_escalation)",
+   "Run finished with status 'ok' in 85ms."
+  ],
+  "decisions": [
+   {
+    "step": "entry_gate",
+    "rule_id": "act",
+    "because": "Renewal in 71 days (within 90) with health score 38 and a change of -33 points",
+    "inputs": {
+     "days_to_renewal": 71,
+     "health_score": 38,
+     "health_score_delta": -33
+    }
+   },
+   {
+    "step": "spend_limits",
+    "rule_id": "within_limits",
+    "because": "within per-account and daily limits",
+    "inputs": {
+     "allow_llm": true,
+     "reason": "within per-account and daily limits",
+     "limit_hit": null,
+     "force_human_review": false
+    }
+   },
+   {
+    "step": "severity",
+    "rule_id": "band_0",
+    "because": "Severity 'critical' because health_score=38 <= 40 and arr_usd=248000 >= 100000",
+    "inputs": {
+     "level": "critical",
+     "health_score": 38,
+     "arr_usd": 248000,
+     "days_to_renewal": 71
+    }
+   },
+   {
+    "step": "write_authority",
+    "rule_id": "auto_approved",
+    "because": "Writing to systems of record automatically: no outcome history for driver 'adoption_decline' - treated as unproven",
+    "inputs": {
+     "needs_human_review": false,
+     "confidence": 0.6,
+     "driver": "adoption_decline",
+     "method": "deterministic_fallback"
+    }
+   },
+   {
+    "step": "routing",
+    "rule_id": "critical_exec_escalation",
+    "because": "Routed to #cs-exec-escalations because rule 'critical_exec_escalation' matched severity=critical in ['critical'] and arr_usd=248000 >= 100000",
+    "inputs": {
+     "channel": "#cs-exec-escalations",
+     "recipients": [
+      "@priya",
+      "@marta"
+     ],
+     "severity": "critical",
+     "arr_usd": 248000,
+     "segment": "enterprise"
+    }
+   }
+  ],
+  "failures": [],
+  "total_cost_usd": 0.0,
+  "step_count": 21
+ }
+};</script>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// The same page serves two modes. Live, it fetches from the FastAPI backend.
+// Published as a static snapshot (GitHub Pages), window.__SNAPSHOT__ holds real
+// captured responses so reviewers can see actual runs without running anything.
+// One source of truth for the UI either way.
+const SNAP = typeof window !== 'undefined' ? (window.__SNAPSHOT__ || null) : null;
+async function get(p){
+  if (SNAP){
+    const key = p.split('?')[0];
+    return key in SNAP ? JSON.parse(JSON.stringify(SNAP[key])) : null;
+  }
+  return (await fetch(p)).json();
+}
+let selected = null, lastWhy = null;
+
+function statusClass(s){ return s==='error'?'err':s==='degraded'?'deg':s==='skipped'?'warn':'ok'; }
+
+async function loadAll(){
+  const [runs, reg, dlq, cal, qual, tools, cost] = await Promise.all([
+    get('/traces?limit=40'), get('/registry'), get('/dead-letters?limit=20'),
+    get('/calibration'), get('/quality'), get('/tools'), get('/cost')
+  ]);
+  renderQuality(qual);
+  renderTools(tools);
+  renderCost(cost);
+
+  const totalRuns = runs.traces.length;
+  const errored = runs.traces.filter(t => t.errors > 0).length;
+  $('stats').innerHTML = [
+    ['Runs logged', totalRuns],
+    ['Runs with errors', errored],
+    ['Agents registered', reg.agent_count],
+    ['Review overdue', reg.review_due_count],
+    ['Reviewed alerts', cal.summary.reviewed_alerts],
+    ['Overall precision', cal.summary.overall_precision == null ? '-'
+        : Math.round(cal.summary.overall_precision*100)+'%'],
+    ['Dead letters', dlq.dead_letters.length],
+  ].map(([l,n]) => `<div class="stat"><div class="n">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join('');
+
+  $('runs').innerHTML = totalRuns ? runs.traces.map(t => `
+    <div class="row ${selected===t.trace_id?'sel':''}" onclick="showWhy('${t.trace_id}')">
+      <div>
+        <div><b>${esc(t.agent)}</b> <span class="muted">· ${t.steps} steps · ${t.total_ms}ms</span></div>
+        <div class="tid">${esc(t.trace_id)}</div>
+      </div>
+      <span class="pill ${t.errors>0?'err':'ok'}">${t.errors>0?t.errors+' err':'ok'}</span>
+    </div>`).join('') : '<div class="empty">No runs yet. Send a webhook or run <code>runner.py</code>.</div>';
+
+  $('registry').innerHTML = `<table><tr><th>Agent</th><th>Owner</th><th>Subscribes to</th><th>Review</th></tr>${
+    reg.agents.map(a => `<tr>
+      <td><b>${esc(a.name)}</b> <span class="muted">v${esc(a.version)}</span></td>
+      <td>${esc(a.owner_slack)}</td>
+      <td class="tid">${a.subscribes_to.map(esc).join('<br>')}</td>
+      <td><span class="pill ${a.review_due?'err':'ok'}">${a.review_due?'overdue':'ok'}</span>
+          <div class="tid">${a.days_since_review}d ago</div></td>
+    </tr>`).join('')}</table>`;
+
+  // The guarded/triage split is computed server side by the same function the
+  // platform_qa agent uses, so this view cannot drift from the audit's verdict.
+  $('dlq').innerHTML = dlq.dead_letters.length
+    ? `<table><tr><th>Source</th><th>Reason</th><th>Type</th><th>When</th></tr>${
+        dlq.dead_letters.map(d => `<tr>
+          <td>${esc(d.source)}</td>
+          <td class="tid">${esc(d.reason)}</td>
+          <td><span class="pill ${d.guarded?'ok':'err'}">${
+            d.guarded ? 'guarded reject' : 'needs triage'}</span></td>
+          <td class="tid">${esc(d.ts.slice(11,19))}</td>
+        </tr>`).join('')}</table>
+       <div class="note">${dlq.needs_triage} needing triage, ${dlq.guarded_rejections}
+         guarded. A guarded reject means the platform correctly refused bad input at the
+         boundary and recorded why: the negative path working, not an incident.</div>`
+    : '<div class="empty">Empty - nothing was dropped.</div>';
+
+  $('calib').innerHTML = cal.drivers.length
+    ? `<table><tr><th>Driver</th><th>Verdicts</th><th>Precision</th><th>Status</th></tr>${
+        cal.drivers.map(d => {
+          const pct = Math.round(d.precision*100);
+          const cls = pct<50?'low':pct<75?'mid':'';
+          return `<tr>
+            <td class="tid">${esc(d.driver)}</td>
+            <td>${d.correct}/${d.samples}</td>
+            <td>${pct}%<div class="bar ${cls}"><i style="width:${pct}%"></i></div></td>
+            <td><span class="pill ${d.needs_review?'err':d.trusted?'ok':'warn'}">${
+              d.needs_review?'force review':d.trusted?'trusted':'unproven'}</span></td>
+          </tr>`;}).join('')}</table>`
+    : '<div class="empty">No verdicts recorded yet. Mark a run correct or wrong to start the loop.</div>';
+}
+
+// Each vendor's call chain, outermost first. Composed from config rather than
+// inherited, which is why Slack and Salesforce can differ without a subclass.
+const POLICY_WHY = {
+  tracing:           'one timed, secret-redacted row per call',
+  idempotency:       'same key, same result, one side effect',
+  circuit_breaker:   'stop calling a vendor that is already down',
+  rate_limit:        'pace ourselves rather than get throttled',
+  retry:             'backoff on timeouts; never retry a 4xx',
+  failure_injection: 'demo hook: prove the failure paths on demand',
+};
+
+function renderCost(c){
+  if(!c){ $('cost').innerHTML = '<div class="empty">No cost data.</div>'; return; }
+  const pct = c.budget_used_pct ?? 0;
+  const cls = pct >= 90 ? 'low' : pct >= 60 ? 'mid' : '';
+  $('cost').innerHTML = `<table>
+    <tr><th>Today</th><th>Budget</th><th>Per analysis</th><th>Projected / month</th><th>State</th></tr>
+    <tr>
+      <td><b>$${(c.spent_today_usd ?? 0).toFixed(4)}</b>
+          <div class="tid">${c.llm_calls} model calls</div></td>
+      <td>$${c.daily_budget_usd ?? '-'}
+          <div class="bar ${cls}"><i style="width:${Math.min(pct,100)}%"></i></div>
+          <div class="tid">${pct}% used, ceiling $${c.soft_ceiling_usd ?? '-'}</div></td>
+      <td>${c.cost_per_analysis_usd != null ? '$'+c.cost_per_analysis_usd.toFixed(5) : '-'}</td>
+      <td>$${c.projected_monthly_usd ?? '-'}
+          <div class="tid">at today's rate</div></td>
+      <td><span class="pill ${c.throttled?'err':'ok'}">${c.throttled?'throttled':'normal'}</span>
+          <div class="tid">${c.throttled_runs} run(s) throttled</div></td>
+    </tr></table>
+    ${c.recent_throttled && c.recent_throttled.length
+      ? c.recent_throttled.map(t => `<div class="why">
+          <div class="rule">${esc(t.limit)} - routed to human</div>
+          <div class="txt">${esc(t.because)}</div></div>`).join('')
+      : ''}
+    <div class="note">Limits: max ${c.limits.max_llm_calls_per_account_per_hour} model calls
+      per account per hour, stop spending at
+      ${Math.round((c.limits.human_review_reserve_ratio ?? 0)*100)}% of budget.</div>`;
+}
+
+function renderTools(t){
+  $('toolsnote').textContent = t.policy_order_note;
+  $('tools').innerHTML = `<table>
+    <tr><th>Vendor</th><th>Policy chain (outermost first)</th><th>Circuit</th><th>Granted to</th></tr>
+    ${t.tools.map(v => `<tr>
+      <td><b>${esc(v.tool)}</b></td>
+      <td>${v.layers.map(l => {
+            const s = Object.entries(l.settings || {}).map(([k,x]) => `${k}=${x}`).join(', ');
+            return `<div><span class="tid">${esc(l.policy)}</span>
+              <span class="muted" style="font-size:11.5px"> - ${esc(POLICY_WHY[l.policy] || '')}</span>
+              ${s ? `<div class="kv">${esc(s)}</div>` : ''}</div>`;
+          }).join('')}</td>
+      <td>${v.circuit_state
+            ? `<span class="pill ${v.circuit_state==='closed'?'ok':'err'}">${esc(v.circuit_state)}</span>`
+            : '<span class="muted">n/a</span>'}</td>
+      <td class="tid">${v.granted_to.map(esc).join('<br>') || '<span class="muted">none</span>'}</td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+function renderQuality(q){
+  const e = q.eval;
+  const gate = !e ? `<div class="empty">No eval recorded. Run <code>python cli.py eval</code>.</div>`
+    : `<table>
+        <tr><th>Eval gate</th><th>Prompt</th><th>Accuracy</th><th>Grounding</th><th>Cost</th></tr>
+        <tr>
+          <td><span class="pill ${e.gate_passed?'ok':'err'}">${e.gate_passed?'PASSED':'FAILED'}</span>
+              <div class="tid">${e.passed}/${e.total} cases · ${esc(e.mode)}</div></td>
+          <td class="tid">${esc(e.prompt_version)}</td>
+          <td>${Math.round(e.driver_accuracy*100)}%</td>
+          <td>${Math.round(e.grounding_rate*100)}%</td>
+          <td class="tid">$${e.cost_usd.toFixed(4)}</td>
+        </tr>
+       </table>
+       ${e.failures.length ? `<div class="narr err">${e.failures.map(esc).join('<br>')}</div>` : ''}`;
+
+  const overrides = `<table>
+      <tr><th>Model overruled</th><th>Count</th><th>Detail</th></tr>
+      <tr><td>Ungrounded citations rejected</td>
+          <td><span class="pill ${q.grounding_rejections?'warn':'ok'}">${q.grounding_rejections}</span></td>
+          <td class="tid">of ${q.grounding_checks} verification checks</td></tr>
+      <tr><td>Fell back to deterministic analyser</td>
+          <td><span class="pill ${q.fallback_runs?'deg':'ok'}">${q.fallback_runs}</span></td>
+          <td class="tid">${Math.round(q.fallback_rate*100)}% of ${q.analysis_runs} runs</td></tr>
+    </table>`;
+
+  // Case-level eval detail. `ambiguous_must_not_guess` is the important row:
+  // it is designed to catch a confidently wrong answer, so a PASS there means
+  // the model correctly declined to guess rather than that nothing was tested.
+  const cases = !e ? '' : `<table>
+      <tr><th>Eval case</th><th>Expected</th><th>Actual</th><th>Result</th></tr>
+      ${e.cases.map(c => `<tr>
+        <td class="tid">${esc(c.case)}${c.case === 'ambiguous_must_not_guess'
+          ? '<div class="muted" style="font-size:11px">negative case - must NOT guess a driver</div>' : ''}</td>
+        <td class="tid">${esc(c.expected)}</td>
+        <td class="tid">${esc(c.actual)}</td>
+        <td><span class="pill ${c.passed?'ok':'err'}">${c.passed?'pass':'fail'}</span></td>
+      </tr>`).join('')}
+    </table>`;
+
+  const recent = [...q.recent_grounding_rejections.map(r =>
+      `<div class="why"><div class="rule">grounding rejected → ${esc(r.trace_id)}</div>
+        <div class="txt">${r.violations.map(esc).join('<br>')}</div></div>`),
+    ...q.recent_fallbacks.slice(0,4).map(f =>
+      `<div class="why"><div class="rule">fallback → ${esc(f.trace_id)}</div>
+        <div class="txt">${esc(f.reason)} - alerted anyway as <b>${esc(f.driver)}</b></div></div>`)
+  ].join('');
+
+  $('quality').innerHTML = gate + cases + overrides
+    + (recent ? `<div style="padding:4px 0">${recent}</div>` : '');
+}
+
+async function showWhy(traceId){
+  selected = traceId;
+  const w = await get(`/traces/${traceId}/why`);
+  lastWhy = w;
+
+  const decisions = w.decisions.map(d => `
+    <div class="why">
+      <div class="rule">${esc(d.step)} → ${esc(d.rule_id)}</div>
+      <div class="txt">${esc(d.because)}</div>
+      <div class="kv">${esc(JSON.stringify(d.inputs))}</div>
+    </div>`).join('');
+
+  const failures = w.failures.length
+    ? `<div class="narr"><b class="err">Failures</b><ul>${
+        w.failures.map(f => `<li class="err">${esc(f.step)}: ${esc(f.error)}</li>`).join('')}</ul></div>`
+    : '';
+
+  $('why').innerHTML = `
+    <div class="narr">
+      <div class="tid">${esc(w.trace_id)} · agent <b>${esc(w.agent)}</b> ·
+           ${w.step_count} steps · $${w.total_cost_usd.toFixed(5)}</div>
+      <ol style="margin:12px 0 0;padding-left:20px">
+        ${w.narrative.map(n => `<li>${esc(n)}</li>`).join('')}
+      </ol>
+    </div>
+    <div style="padding-bottom:6px">${decisions}</div>
+    ${failures}
+    <div class="fb">
+      <span class="muted">Was this alert correct?</span>
+      <button class="p" onclick="sendFeedback('correct')">Correct</button>
+      <button onclick="sendFeedback('wrong')">Wrong</button>
+      <button onclick="sendFeedback('unclear')">Unclear</button>
+      <span id="fbmsg" class="muted"></span>
+    </div>`;
+  loadRunsSelection();
+}
+
+function loadRunsSelection(){
+  document.querySelectorAll('#runs .row').forEach(r => {
+    r.classList.toggle('sel', r.querySelector('.tid')?.textContent === selected);
+  });
+}
+
+async function sendFeedback(verdict){
+  if(!lastWhy) return;
+  if(SNAP){
+    // Static snapshot has no backend. Say so rather than failing silently.
+    $('fbmsg').textContent = 'Read-only snapshot. Run the app locally to close the loop.';
+    return;
+  }
+  // Pull the driver/severity the run actually decided on, so the verdict is
+  // attributed to the same driver the agent predicted.
+  const steps = await get(`/traces/${lastWhy.trace_id}`);
+  const analyse = steps.steps.find(s => s.step === 'analyse');
+  const severity = steps.steps.find(s => s.step === 'severity');
+  const started = steps.steps.find(s => s.step === 'run_started');
+
+  const driver = analyse?.detail?.driver;
+  if(!driver){ $('fbmsg').textContent = 'This run produced no driver to score.'; return; }
+
+  const res = await fetch('/feedback', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      trace_id: lastWhy.trace_id, agent: lastWhy.agent,
+      account_id: started?.detail?.account_id ?? 'unknown',
+      driver,
+      severity: severity?.detail?.decision_inputs?.level ?? 'unknown',
+      verdict, reviewer:'dashboard'
+    })
+  });
+  $('fbmsg').textContent = res.ok ? 'Recorded - calibration updated.' : 'Failed to record.';
+  loadAll();
+}
+
+if (SNAP){
+  $('mode').innerHTML = '<span class="pill warn">static snapshot</span>';
+  document.querySelector('.sub').textContent =
+    'Captured from a real local run on ' + (SNAP.__captured_at || 'an earlier date') +
+    '. Read-only. Run the app locally for the live version.';
+}
+loadAll();
+// Only poll when there is a backend to poll.
+if (!SNAP) setInterval(loadAll, 15000);
+</script>
+</body>
+</html>

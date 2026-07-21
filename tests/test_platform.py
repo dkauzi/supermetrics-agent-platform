@@ -420,6 +420,107 @@ def test_no_budget_configured_means_no_ceiling(platform, monkeypatch):
     assert LLMClient(platform.config)._budget_remaining(_trace(platform)) is None
 
 
+# ── Runaway protection and the human gate ──────────────────────────────────────
+
+def _burn_llm_calls(platform, account_id, n, cost=0.001):
+    """Simulate n prior model calls about one account."""
+    from agentplatform.events import Event
+    for i in range(n):
+        event = Event(event_id=f"burn-{account_id}-{i}", event_type="health_score.dropped",
+                      source="gainsight", account_id=account_id,
+                      occurred_at=datetime.now(timezone.utc))
+        platform.warehouse.record_event(event)
+        platform.observability.start_run(event, "renewal_risk").record_cost(
+            "test/model", 100, 50, cost)
+
+
+def test_flapping_account_is_throttled_not_billed_repeatedly(platform):
+    from agentplatform.limits import check_limits
+
+    limit = platform.config.get("limits.max_llm_calls_per_account_per_hour")
+    _burn_llm_calls(platform, "ACC-4417", limit)
+
+    decision = check_limits(platform.warehouse, platform.config, "ACC-4417")
+    assert decision.allow_llm is False
+    assert decision.limit_hit == "account_hourly_llm_calls"
+    # The whole point: throttling must escalate, never silently drop the work.
+    assert decision.force_human_review is True
+
+
+def test_throttle_is_per_account_not_global(platform):
+    from agentplatform.limits import check_limits
+
+    _burn_llm_calls(platform, "ACC-4417",
+                    platform.config.get("limits.max_llm_calls_per_account_per_hour"))
+    # A different account must be unaffected by one noisy neighbour.
+    assert check_limits(platform.warehouse, platform.config, "ACC-2201").allow_llm is True
+
+
+def test_soft_ceiling_stops_spend_before_the_budget_is_drained(platform):
+    from agentplatform.limits import check_limits
+
+    platform.config.raw["llm"]["daily_cost_budget_usd"] = 1.0
+    platform.config.raw["limits"]["max_llm_calls_per_account_per_hour"] = 0
+    _burn_llm_calls(platform, "ACC-9033", 1, cost=0.95)  # 95% of budget
+
+    decision = check_limits(platform.warehouse, platform.config, "ACC-9033")
+    assert decision.allow_llm is False
+    assert decision.limit_hit == "daily_cost_soft_ceiling"
+    assert decision.force_human_review is True
+
+
+def test_throttled_run_still_alerts_the_human(platform):
+    platform.config.raw["limits"]["max_llm_calls_per_account_per_hour"] = 1
+    _burn_llm_calls(platform, "ACC-4417", 2)
+
+    result = platform.ingest("gainsight", load_sample("webhook_health_score_drop.json"))
+    payload = result["results"][0]["result"]
+
+    assert payload["acted"] is True
+    assert payload["needs_human_review"] is True
+    assert platform.tools.raw("slack").sent, "throttling must never swallow the alert"
+
+
+def test_flagged_run_holds_crm_writes_and_asks_instead(platform):
+    # Drive the driver's measured precision below the review floor.
+    for i in range(8):
+        record_outcome(platform.warehouse, f"seed-{i}", "renewal_risk", "ACC-4417",
+                       "adoption_decline", "critical", "wrong")
+
+    result = platform.ingest("gainsight", load_sample("webhook_health_score_drop.json"))
+    payload = result["results"][0]["result"]
+
+    assert payload["needs_human_review"] is True
+    assert payload["writes_held_for_approval"] is True
+    # Nothing was written to the systems of record on a prediction we distrust.
+    assert platform.tools.raw("salesforce").written == []
+    assert platform.tools.raw("gainsight").written == []
+    # But a human was asked, on the approvals channel.
+    assert any(m["channel"] == "#cs-agent-approvals"
+               for m in platform.tools.raw("slack").sent)
+
+
+def test_held_writes_are_visible_in_the_golden_record(platform):
+    for i in range(8):
+        record_outcome(platform.warehouse, f"seed-{i}", "renewal_risk", "ACC-4417",
+                       "adoption_decline", "critical", "wrong")
+    platform.ingest("gainsight", load_sample("webhook_health_score_drop.json"))
+
+    record = platform.warehouse.get_golden_record("ACC-4417")
+    # A downstream consumer must be able to tell a held finding from an asserted one.
+    assert record["data"]["renewal_risk_write_status"] == "awaiting_approval"
+
+
+def test_trusted_run_writes_without_asking(platform):
+    result = platform.ingest("gainsight", load_sample("webhook_health_score_drop.json"))
+    payload = result["results"][0]["result"]
+
+    assert payload["writes_held_for_approval"] is False
+    assert len(platform.tools.raw("salesforce").written) == 1
+    record = platform.warehouse.get_golden_record("ACC-4417")
+    assert record["data"]["renewal_risk_write_status"] == "asserted"
+
+
 # ── Platform QA agent ──────────────────────────────────────────────────────────
 
 def test_platform_qa_passes_on_a_clean_platform(platform, monkeypatch, tmp_path):

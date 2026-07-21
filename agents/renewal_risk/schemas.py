@@ -63,3 +63,6 @@ class AnalysisMeta(BaseModel):
     degraded_reason: str | None = None
     raw_confidence: float | None = None
     calibrated_confidence: float | None = None
+    # Set when a spend or runaway limit forced the deterministic path, so the
+    # escalation survives independently of the calibration verdict.
+    forced_human_review: bool = False

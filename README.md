@@ -1,6 +1,9 @@
 # Renewal Risk Analyser and Router
 
 [![CI](https://github.com/dkauzi/supermetrics-agent-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/dkauzi/supermetrics-agent-platform/actions/workflows/ci.yml)
+[![tests](https://img.shields.io/badge/tests-41%20passing-brightgreen)](tests/test_platform.py)
+[![eval gate](https://img.shields.io/badge/golden%20eval-gated%20in%20CI-blue)](tests/golden/run_eval.py)
+[![python](https://img.shields.io/badge/python-3.11%20|%203.12%20|%203.13-blue)](.github/workflows/ci.yml)
 
 A renewal-risk agent, built as the **first agent on a shared platform** rather than a standalone script - because the brief describes one agent, but the role is owning the layer many agents plug into.
 
@@ -11,6 +14,26 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 cp .env.example .env          # add OPENROUTER_API_KEY (runs without one, in offline mode)
 .venv/bin/python runner.py    # 5 scenarios end-to-end, including the failure paths
 .venv/bin/uvicorn app:app     # dashboard on http://127.0.0.1:8000
+```
+
+## Dashboard
+
+Runs locally at **http://127.0.0.1:8000** after `uvicorn app:app`. Nothing is deployed, per the brief. Five panels, each answering a question someone actually asks:
+
+| Panel | Question it answers |
+|---|---|
+| Recent agent runs | What has the platform been doing? |
+| **Why did this agent do that?** | Plain-English narrative of one run, naming the rule that fired and the values it matched. Built for a CS lead, not an engineer. |
+| Agent registry | What agents exist, who owns them, which are overdue for review? |
+| Integrations | What reliability policy wraps each vendor, and is any circuit open? |
+| Guardrails | Eval-gate status, per-case results, ungrounded citations rejected, fallback rate. |
+| Learning loop | Measured precision per churn driver, from human verdicts. Mark a run correct or wrong and the next run's confidence changes. |
+
+Also available headless, for the 2am case where you do not want a browser:
+
+```bash
+.venv/bin/python cli.py why <trace_id>     # same narrative, in the terminal
+.venv/bin/python cli.py audit              # platform self-audit, non-zero exit on critical
 ```
 
 **Flow:** webhook → normalise → dedupe → event bus → *(registry decides who subscribes)* → agent: fetch context → LLM analysis → schema validation → grounding verification → severity → write Salesforce + Gainsight + Golden Record → route → Slack. Every step writes a trace row.

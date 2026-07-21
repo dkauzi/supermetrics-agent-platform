@@ -23,6 +23,7 @@ from agentplatform import build_platform
 from agentplatform.config import data_dir
 from agentplatform.events import UnknownEventSource
 from agentplatform.feedback import Calibration, record_outcome
+from agentplatform.limits import spend_report
 from agents.platform_qa.agent import is_guarded_rejection
 
 app = FastAPI(title="Supermetrics Agent Platform", version="1.0.0")
@@ -164,6 +165,36 @@ def tools() -> dict[str, Any]:
             "a network call, fail fast when a vendor is down, pace ourselves, then retry."
         ),
     }
+
+
+@app.get("/cost")
+def cost() -> dict[str, Any]:
+    """Spend against budget, and what happens when it runs out.
+
+    Cost is a first-class operational metric here, not a monthly surprise. The
+    important field is `throttled`: past the soft ceiling the platform stops
+    paying for the model and routes runs to a human instead of either
+    overspending or silently dropping alerts.
+    """
+    report = spend_report(platform.warehouse, platform.config)
+    report["limits"] = {
+        "max_llm_calls_per_account_per_hour":
+            platform.config.get("limits.max_llm_calls_per_account_per_hour"),
+        "human_review_reserve_ratio":
+            platform.config.get("limits.human_review_reserve_ratio"),
+    }
+
+    # Runs that a limit pushed onto the deterministic path.
+    throttled = [
+        {"trace_id": s["trace_id"], "ts": s["ts"],
+         "limit": (s["detail"] or {}).get("rule_id"),
+         "because": (s["detail"] or {}).get("because")}
+        for s in platform.warehouse.steps_named("spend_limits", limit=200)
+        if (s["detail"] or {}).get("rule_id") not in (None, "within_limits")
+    ]
+    report["throttled_runs"] = len(throttled)
+    report["recent_throttled"] = throttled[:8]
+    return report
 
 
 @app.get("/quality")

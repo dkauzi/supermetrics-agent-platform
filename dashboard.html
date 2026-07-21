@@ -72,6 +72,7 @@
   <h1>Agent Platform</h1>
   <span class="sub">Observability &amp; learning loop · every run logged, every decision explained</span>
   <span style="flex:1"></span>
+  <span id="mode"></span>
   <button onclick="loadAll()">Refresh</button>
 </header>
 
@@ -109,6 +110,14 @@
       </div>
 
       <div class="card">
+        <h2>Cost and runaway protection</h2>
+        <div class="body" id="cost"></div>
+        <div class="note">Past the soft ceiling the platform stops paying for the model and
+          routes runs to a human. It never overspends, and it never silently drops an alert
+          to save money.</div>
+      </div>
+
+      <div class="card">
         <h2>Guardrails - what the safety net caught</h2>
         <div class="body" id="quality"></div>
         <div class="note">The LLM is never trusted directly. Ungrounded citations are rejected
@@ -129,18 +138,31 @@
 <script>
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const get = async p => (await fetch(p)).json();
+
+// The same page serves two modes. Live, it fetches from the FastAPI backend.
+// Published as a static snapshot (GitHub Pages), window.__SNAPSHOT__ holds real
+// captured responses so reviewers can see actual runs without running anything.
+// One source of truth for the UI either way.
+const SNAP = typeof window !== 'undefined' ? (window.__SNAPSHOT__ || null) : null;
+async function get(p){
+  if (SNAP){
+    const key = p.split('?')[0];
+    return key in SNAP ? JSON.parse(JSON.stringify(SNAP[key])) : null;
+  }
+  return (await fetch(p)).json();
+}
 let selected = null, lastWhy = null;
 
 function statusClass(s){ return s==='error'?'err':s==='degraded'?'deg':s==='skipped'?'warn':'ok'; }
 
 async function loadAll(){
-  const [runs, reg, dlq, cal, qual, tools] = await Promise.all([
+  const [runs, reg, dlq, cal, qual, tools, cost] = await Promise.all([
     get('/traces?limit=40'), get('/registry'), get('/dead-letters?limit=20'),
-    get('/calibration'), get('/quality'), get('/tools')
+    get('/calibration'), get('/quality'), get('/tools'), get('/cost')
   ]);
   renderQuality(qual);
   renderTools(tools);
+  renderCost(cost);
 
   const totalRuns = runs.traces.length;
   const errored = runs.traces.filter(t => t.errors > 0).length;
@@ -214,6 +236,34 @@ const POLICY_WHY = {
   retry:             'backoff on timeouts; never retry a 4xx',
   failure_injection: 'demo hook: prove the failure paths on demand',
 };
+
+function renderCost(c){
+  if(!c){ $('cost').innerHTML = '<div class="empty">No cost data.</div>'; return; }
+  const pct = c.budget_used_pct ?? 0;
+  const cls = pct >= 90 ? 'low' : pct >= 60 ? 'mid' : '';
+  $('cost').innerHTML = `<table>
+    <tr><th>Today</th><th>Budget</th><th>Per analysis</th><th>Projected / month</th><th>State</th></tr>
+    <tr>
+      <td><b>$${(c.spent_today_usd ?? 0).toFixed(4)}</b>
+          <div class="tid">${c.llm_calls} model calls</div></td>
+      <td>$${c.daily_budget_usd ?? '-'}
+          <div class="bar ${cls}"><i style="width:${Math.min(pct,100)}%"></i></div>
+          <div class="tid">${pct}% used, ceiling $${c.soft_ceiling_usd ?? '-'}</div></td>
+      <td>${c.cost_per_analysis_usd != null ? '$'+c.cost_per_analysis_usd.toFixed(5) : '-'}</td>
+      <td>$${c.projected_monthly_usd ?? '-'}
+          <div class="tid">at today's rate</div></td>
+      <td><span class="pill ${c.throttled?'err':'ok'}">${c.throttled?'throttled':'normal'}</span>
+          <div class="tid">${c.throttled_runs} run(s) throttled</div></td>
+    </tr></table>
+    ${c.recent_throttled && c.recent_throttled.length
+      ? c.recent_throttled.map(t => `<div class="why">
+          <div class="rule">${esc(t.limit)} - routed to human</div>
+          <div class="txt">${esc(t.because)}</div></div>`).join('')
+      : ''}
+    <div class="note">Limits: max ${c.limits.max_llm_calls_per_account_per_hour} model calls
+      per account per hour, stop spending at
+      ${Math.round((c.limits.human_review_reserve_ratio ?? 0)*100)}% of budget.</div>`;
+}
 
 function renderTools(t){
   $('toolsnote').textContent = t.policy_order_note;
@@ -332,6 +382,11 @@ function loadRunsSelection(){
 
 async function sendFeedback(verdict){
   if(!lastWhy) return;
+  if(SNAP){
+    // Static snapshot has no backend. Say so rather than failing silently.
+    $('fbmsg').textContent = 'Read-only snapshot. Run the app locally to close the loop.';
+    return;
+  }
   // Pull the driver/severity the run actually decided on, so the verdict is
   // attributed to the same driver the agent predicted.
   const steps = await get(`/traces/${lastWhy.trace_id}`);
@@ -356,8 +411,15 @@ async function sendFeedback(verdict){
   loadAll();
 }
 
+if (SNAP){
+  $('mode').innerHTML = '<span class="pill warn">static snapshot</span>';
+  document.querySelector('.sub').textContent =
+    'Captured from a real local run on ' + (SNAP.__captured_at || 'an earlier date') +
+    '. Read-only. Run the app locally for the live version.';
+}
 loadAll();
-setInterval(loadAll, 15000);
+// Only poll when there is a backend to poll.
+if (!SNAP) setInterval(loadAll, 15000);
 </script>
 </body>
 </html>

@@ -81,6 +81,16 @@ tools:
         max_attempts: 2
 
 # Output verification. Runs between the model and any system of record.
+# Runaway and spend protection. When any of these trips the work does NOT stop:
+# the run continues deterministically and is routed to a human. A cost control
+# that silently drops customer alerts is worse than the cost it saves.
+limits:
+  # Catches a flapping trigger firing the same agent at one account repeatedly.
+  max_llm_calls_per_account_per_hour: 5
+  # Stop paying for the model at this fraction of the daily budget, so the last
+  # runs of the day degrade predictably instead of mid-analysis.
+  human_review_reserve_ratio: 0.9
+
 verification:
   min_evidence_items: 2
   numeric_tolerance: 0.01
@@ -110,6 +120,13 @@ agents:
     # Prompt rollback is this one line. See docs/RUNBOOK.md.
     prompt_version: v2
     min_confidence: 0.55
+
+    human_approval:
+      # When a run is flagged for human verification, hold the CRM writes and ask
+      # in Slack instead of writing on a prediction we do not trust. This is what
+      # makes needs_human_review an actual control rather than a label.
+      block_writes_when_flagged: true
+      channel: "#cs-agent-approvals"
 
     triggers:
       renewal_window_days: 90
