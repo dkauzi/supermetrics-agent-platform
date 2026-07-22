@@ -1,7 +1,7 @@
 # Renewal Risk Analyser and Router
 
 [![CI](https://github.com/dkauzi/supermetrics-agent-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/dkauzi/supermetrics-agent-platform/actions/workflows/ci.yml)
-[![tests](https://img.shields.io/badge/tests-81%20passing-brightgreen)](tests/test_platform.py)
+[![tests](https://img.shields.io/badge/tests-89%20passing-brightgreen)](tests/test_platform.py)
 [![eval gate](https://img.shields.io/badge/golden%20eval-gated%20in%20CI-blue)](tests/golden/run_eval.py)
 
 **[Overview and demo →](https://dkauzi.github.io/supermetrics-agent-platform/)** · [Architecture](docs/ARCHITECTURE.md) · [Engineering notes](docs/ENGINEERING_NOTES.md)
@@ -17,7 +17,9 @@ cp .env.example .env          # optional: add OPENROUTER_API_KEY
 .venv/bin/uvicorn app:app     # dashboard on http://127.0.0.1:8000
 ```
 
-**What their sample payload caught.** Supermetrics supply three accounts with near-identical triggers and near-identical health drops, built to expose an analysis step that just reformats the trigger. It exposed one. My prompt called the *usage-collapse* account `champion_loss` because one contact had also changed role, giving two different accounts the same answer. The fix was a discriminator drawn from the data: when automation is still running and only person-shaped work stopped, that is a lost champion; when the automation stopped too and most seats went inactive, it is broad disengagement, whoever left. All three accounts now resolve to distinct, correct drivers and are locked into the golden eval. Details: [engineering notes](docs/ENGINEERING_NOTES.md).
+That payload caught a real defect: the prompt first gave two different accounts the same driver, which is exactly what the file is built to expose. The fix, and the discriminator behind it, are in the [overview](https://dkauzi.github.io/supermetrics-agent-platform/).
+
+Onboarding a new agent is one command — `cli.py new-agent` writes the module and registry entry, and refuses a missing owner, an unknown tool or a malformed event name.
 
 **Failure modes.** Redelivered webhooks dedupe on `event_id`; every write is idempotent. Malformed input is dead-lettered with a reason, never half-written. Invalid LLM JSON gets one repair round-trip, then the next model in the chain. Evidence the model cites is verified against the data we actually fetched, and ungrounded analysis is discarded rather than softened. If the model is down or over budget a deterministic analyser takes over, the run is marked degraded, and the human is still alerted. Vendor 5xx retries with backoff, 4xx does not, and a circuit breaker stops us amplifying an outage. When confidence is low, CRM writes are held and a person is asked in Slack instead.
 

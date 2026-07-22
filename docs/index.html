@@ -335,20 +335,126 @@ cp .env.example .env          # optional: add OPENROUTER_API_KEY
     </div>
   </section>
 
-  <!-- ── 8 ─────────────────────────────────────────────────────────────── -->
+
+  <!-- ── 8b ────────────────────────────────────────────────────────────── -->
   <section>
-    <span class="num">08 · Honestly</span>
-    <h2>What is not real</h2>
+    <span class="num">08 · Doing the job</span>
+    <h2>Every responsibility in the role, and the command that shows it</h2>
+    <p>The job description lists what this person owns day to day. Each line below is a real
+    thing you can run against this repo, not a claim.</p>
+
+    <div class="scroll">
+    <table>
+      <tr><th style="width:27%">Responsibility</th><th style="width:38%">How it works here</th><th>Run it</th></tr>
+
+      <tr><td><b>Own the Agent Registry</b><br><span class="muted small">what each agent does, who owns it, when it was last reviewed</span></td>
+          <td>One YAML file is the source of truth. Nothing reaches the bus without an entry, an owner and a review date. Overdue reviews are surfaced, not buried.</td>
+          <td><code>python cli.py registry</code><br><span class="muted small">→ 3 agents · 3 enabled · 1 overdue review</span></td></tr>
+
+      <tr><td><b>Onboard new agents correctly</b><br><span class="muted small">with the GTM and CS AI Leads</span></td>
+          <td>Onboarding is a command, not a checklist, because checklists get skipped under pressure. It refuses a missing owner, an unknown tool, a bad event name or a duplicate agent.</td>
+          <td><code>python cli.py new-agent …</code><br><span class="muted small">generates the module + registry entry; see below</span></td></tr>
+
+      <tr><td><b>Event routing without hardwiring</b><br><span class="muted small">health drops, renewals, stage changes</span></td>
+          <td>Publishers never learn who subscribes. Agents declare the events they want in the registry; the bus fans out. Adding a subscriber changes no existing agent.</td>
+          <td><code>python runner.py</code><br><span class="muted small">one event, multiple agents, independent traces</span></td></tr>
+
+      <tr><td><b>Consistent, reliable vendor connections</b><br><span class="muted small">Salesforce, Gainsight, HubSpot, Zendesk</span></td>
+          <td>All five go through one client layer. Retry, idempotency, circuit breaking and rate limiting are composable policies configured per vendor, not copied per agent.</td>
+          <td><code>curl localhost:8000/tools</code><br><span class="muted small">live policy chain + circuit state</span></td></tr>
+
+      <tr><td><b>Managing vendor API changes</b></td>
+          <td>A payload change is one normaliser. An endpoint change is one <code>_execute</code>. Every agent inherits the fix; none of them are touched.</td>
+          <td><span class="muted small">worked example in</span> <a href="https://github.com/dkauzi/supermetrics-agent-platform/blob/main/docs/LIVE_MODIFICATION.md">LIVE_MODIFICATION.md</a></td></tr>
+
+      <tr><td><b>Shared functions, fixed once</b></td>
+          <td>No agent implements retry, cost accounting, schema validation or grounding itself. When two definitions of "grounded" drifted apart, that was a bug, and it was fixed by deleting one.</td>
+          <td><code>python -m pytest -q</code><br><span class="muted small">81 tests, weighted to failure paths</span></td></tr>
+
+      <tr><td><b>Observability: every run logged and queryable</b></td>
+          <td>One trace per run, one row per step, rendered for two readers: plain English for whoever is asking, rules and values for whoever is fixing. Same trace, so they cannot disagree.</td>
+          <td><code>python cli.py why &lt;trace_id&gt;</code><br><code>curl localhost:8000/traces</code></td></tr>
+
+      <tr><td><b>Monitor the agents</b><br><span class="muted small">catch issues fast</span></td>
+          <td>A QA agent audits the platform itself: unowned agents, overdue reviews, dead letters, a failing eval gate, open circuits. It has no LLM, deliberately, because every check has a correct answer. Non-zero exit, so it doubles as a CI gate.</td>
+          <td><code>python cli.py audit</code><br><span class="muted small">exit 0 = no criticals</span></td></tr>
+
+      <tr><td><b>Data quality and write authority on the Golden Record</b></td>
+          <td>Every write carries <code>updated_by</code> and <code>trace_id</code>, so any value traces back to the run that produced it. Optimistic concurrency means a competing writer is rejected and retried, never silently lost.</td>
+          <td><code>curl localhost:8000/accounts/{id}/golden</code></td></tr>
+
+      <tr><td><b>Translate stakeholder needs into infrastructure</b></td>
+          <td>Thresholds, severity bands, routing rules and channels live in YAML. A CS lead can change who gets paged without an engineer, and the rule that fired is written to the trace.</td>
+          <td><span class="muted small">edit</span> <code>config/platform.yaml</code><br><span class="muted small">→ re-run, see the new rule id in the trace</span></td></tr>
+    </table>
+    </div>
+
+    <h3>Onboarding an agent, start to finish</h3>
+    <p>This is the part a GTM or CS Lead actually touches, so it is one command and the platform
+    enforces the rules rather than trusting anyone to remember them.</p>
+    <pre><code>python cli.py new-agent qbr_nudge \
+  --owner denis.miano \
+  --description "Nudges CS when an enterprise account has no QBR before renewal." \
+  --subscribes-to renewal.risk_signal \
+  --tools salesforce gainsight</code></pre>
+    <p>That writes <code>agents/qbr_nudge/agent.py</code> and one registry entry. Nothing else
+    changes. The new agent immediately has, without a line of it being written:</p>
     <ul>
-      <li>Vendor clients are <b>mocks</b> over a fixture dataset. They honour the real interface,
-      retry semantics and idempotency, but nothing crosses the network except the model call.</li>
-      <li>The BigQuery adapter is a complete implementation whose SQL is asserted in tests, but it
-      has <b>never run against a live dataset</b>: there were no GCP credentials for this exercise.</li>
-      <li>Pseudonymising identifiers before the model call is data <b>minimisation, not
-      anonymisation</b>.</li>
+      <li>per-call tracing, retries and idempotency on every vendor call</li>
+      <li>circuit breaking and rate limiting, per vendor</li>
+      <li>a row on the dashboard and a plain-English explanation of every run</li>
+      <li>tool permissions enforced from the registry: it can touch those three and nothing else</li>
+      <li>an owner and a review date, so it cannot quietly go stale</li>
     </ul>
-    <p class="muted small">Everything else here executes: <b>81 tests</b>, the golden eval gate,
-    and the platform's own self-audit, all green in CI on three Python versions.</p>
+    <p>And it refuses to onboard anything that would become someone else's problem later:</p>
+    <div class="scroll">
+    <table>
+      <tr><th style="width:44%">Attempt</th><th>Refused because</th></tr>
+      <tr><td><code>--owner ""</code></td><td>an agent nobody owns is an outage waiting</td></tr>
+      <tr><td><code>--tools netsuite</code></td><td>a tool must exist before an agent can be granted it</td></tr>
+      <tr><td><code>--subscribes-to healthscore</code></td><td>event types must be dotted, so routing stays predictable</td></tr>
+      <tr><td><code>new-agent renewal_risk</code></td><td>that agent already exists</td></tr>
+      <tr><td><code>new-agent "Bad Name"</code></td><td>names must be importable module names</td></tr>
+    </table>
+    </div>
+    <div class="say"><b>Worth saying out loud</b>
+    Three agents run on this platform. Adding one is a module and a registry entry: it inherits
+    tracing, retries, idempotency, tool permissions and the dashboard for free, and it can only
+    touch the tools its registry entry grants. The complexity did not disappear, it moved into
+    the platform where it is written once and tested once.</div>
+
+    <h3>The platform audits itself</h3>
+    <p>"Monitor the agents" is in the job description, so monitoring is an agent too - one that
+    checks the platform rather than a customer. It runs on the same bus, is traced like any
+    other run, and has <b>no LLM</b>: every check it performs has a correct answer, so a model
+    there would make a reliable result probabilistic and bill for it.</p>
+    <pre><code>$ python cli.py audit
+
+Platform audit: WARN  (0 critical, 2 warnings)
+
+  [WARNING ] review_cadence
+      Agent 'support_escalation' last reviewed 193 days ago (interval 90)
+      fix: Review with jordon.lacken, then update last_reviewed in the registry
+
+  [INFO    ] guarded_rejections
+      2 payloads correctly refused at the boundary
+      fix: No action needed. Investigate only if the volume is unexpected, which
+           would suggest a vendor changed a payload shape.
+
+  [WARNING ] fallback_rate
+      100% of analyses fell back to deterministic logic (5/5).
+      Reasons: ['llm_offline_mode']
+      fix: Check OPENROUTER_API_KEY and the model chain in config/platform.yaml
+
+  trace: tr_d5ada3ea4b2e45a6</code></pre>
+    <p>Three things worth noticing. Every finding carries <b>the fix and who to talk to</b>,
+    because a warning nobody knows how to action is noise. The audit itself has a
+    <b>trace id</b>, so an audit is as auditable as anything else it inspects. And it exits
+    non-zero on a critical, which makes it a CI gate as well as a report: the platform can fail
+    its own build.</p>
+    <p class="muted small">It catches unowned agents, overdue reviews, dead letters piling up,
+    a failing eval gate, open circuit breakers, and a fallback rate that means the model or a
+    vendor is quietly degraded.</p>
   </section>
 
   <!-- ── 9 ─────────────────────────────────────────────────────────────── -->
@@ -373,6 +479,22 @@ cp .env.example .env          # optional: add OPENROUTER_API_KEY
     Severity, routing, spend limits, grounding checks and the whole QA agent are
     deterministic. Every one of them has a correct answer, so a model there would turn a
     reliable result probabilistic and bill for it.</div>
+  </section>
+
+  <!-- ── 8 ─────────────────────────────────────────────────────────────── -->
+  <section>
+    <span class="num">10 · Honestly</span>
+    <h2>What is not real</h2>
+    <ul>
+      <li>Vendor clients are <b>mocks</b> over a fixture dataset. They honour the real interface,
+      retry semantics and idempotency, but nothing crosses the network except the model call.</li>
+      <li>The BigQuery adapter is a complete implementation whose SQL is asserted in tests, but it
+      has <b>never run against a live dataset</b>: there were no GCP credentials for this exercise.</li>
+      <li>Pseudonymising identifiers before the model call is data <b>minimisation, not
+      anonymisation</b>.</li>
+    </ul>
+    <p class="muted small">Everything else here executes: <b>89 tests</b>, the golden eval gate,
+    and the platform's own self-audit, all green in CI on three Python versions.</p>
   </section>
 
   <p class="meta">Everything above is reproducible from the repo: <code>python runner.py</code>

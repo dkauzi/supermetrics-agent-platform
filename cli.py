@@ -173,6 +173,42 @@ def cmd_audit(platform, args) -> int:
     return 1 if payload["critical"] else 0
 
 
+def cmd_new_agent(platform, args) -> int:
+    """Onboard a new agent: generate the module, register it, enforce the contract."""
+    from agentplatform.scaffold import ScaffoldError, create_agent
+
+    try:
+        created = create_agent(
+            name=args.name,
+            owner=args.owner,
+            subscribes_to=args.subscribes_to,
+            tools=args.tools,
+            description=args.description,
+            team=args.team,
+        )
+    except ScaffoldError as exc:
+        print(f"\n  refused: {exc}\n")
+        return 1
+
+    print(f"\n  Onboarded '{created['name']}'\n")
+    print(f"    module     {created['module']}")
+    print(f"    registry   {created['registry']}")
+    print(f"    owner      {created['owner']}")
+    print(f"    subscribes {', '.join(created['subscribes_to'])}")
+    print(f"    tools      {', '.join(created['tools'])}  (and nothing else)")
+    print("\n  It already has, without writing any of it:")
+    for inherited in ("per-call tracing, retries and idempotency",
+                      "circuit breaking and rate limiting per vendor",
+                      "a dashboard row and a plain-English trace explainer",
+                      "tool permissions enforced from the registry",
+                      "a review date, so it cannot quietly go stale"):
+        print(f"    - {inherited}")
+    print(f"\n  Next: edit {created['module']}, then\n"
+          f"    python cli.py registry\n"
+          f"    python cli.py send <source> <payload.json>\n")
+    return 0
+
+
 def cmd_eval(platform, args) -> int:
     from tests.golden.run_eval import run_eval
     return run_eval(platform, prompt_version=args.prompt_version, samples=args.samples)
@@ -214,6 +250,18 @@ def main() -> int:
     calib.set_defaults(func=cmd_calibration)
 
     sub.add_parser("audit").set_defaults(func=cmd_audit)
+
+    new_agent = sub.add_parser("new-agent", help="onboard a new agent onto the platform")
+    new_agent.add_argument("name")
+    new_agent.add_argument("--owner", required=True,
+                           help="who gets woken up when it breaks")
+    new_agent.add_argument("--description", required=True)
+    new_agent.add_argument("--subscribes-to", nargs="+", required=True,
+                           metavar="EVENT", help="e.g. health_score.dropped")
+    new_agent.add_argument("--tools", nargs="+", default=["salesforce"],
+                           help="vendors this agent may touch, and no others")
+    new_agent.add_argument("--team", default="gtm-ai")
+    new_agent.set_defaults(func=cmd_new_agent)
 
     evaluate = sub.add_parser("eval")
     evaluate.add_argument("--prompt-version", default=None)

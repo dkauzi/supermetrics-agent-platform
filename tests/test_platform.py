@@ -521,6 +521,87 @@ def test_trusted_run_writes_without_asking(platform):
     assert record["data"]["renewal_risk_write_status"] == "asserted"
 
 
+# ── Agent onboarding ───────────────────────────────────────────────────────────
+# "Onboard new agents onto the shared platform correctly" is a JD responsibility.
+# Correctly means the platform refuses the things that become someone else's
+# problem later, so those refusals are tested rather than trusted.
+
+@pytest.fixture
+def scaffold_sandbox(tmp_path, monkeypatch):
+    """Run the scaffold against a throwaway repo so tests cannot mutate this one."""
+    from agentplatform import scaffold
+
+    (tmp_path / "agents").mkdir()
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config" / "registry.yaml").write_text("agents:\n")
+    monkeypatch.setattr(scaffold, "REPO_ROOT", tmp_path)
+    return tmp_path
+
+
+@pytest.mark.parametrize("kwargs,expected", [
+    ({"name": "Bad Name"}, "not a valid agent name"),
+    ({"name": "ab"}, "not a valid agent name"),
+    ({"owner": ""}, "owner is required"),
+    ({"tools": ["netsuite"]}, "unknown tool"),
+    ({"subscribes_to": ["healthscore"]}, "must be dotted"),
+])
+def test_onboarding_refuses_what_becomes_a_problem_later(scaffold_sandbox, kwargs, expected):
+    from agentplatform.scaffold import ScaffoldError, create_agent
+
+    args = {"name": "qbr_nudge", "owner": "denis.miano", "subscribes_to": ["renewal.risk_signal"],
+            "tools": ["salesforce"], "description": "d"}
+    args.update(kwargs)
+
+    with pytest.raises(ScaffoldError, match=expected):
+        create_agent(**args)
+
+
+def test_onboarding_will_not_silently_replace_an_existing_agent(scaffold_sandbox):
+    from agentplatform.scaffold import ScaffoldError, create_agent
+
+    args = dict(name="qbr_nudge", owner="denis.miano",
+                subscribes_to=["renewal.risk_signal"], tools=["salesforce"], description="d")
+    create_agent(**args)
+    with pytest.raises(ScaffoldError, match="already exists"):
+        create_agent(**args)
+
+
+def test_onboarding_produces_a_registered_importable_agent(scaffold_sandbox):
+    import yaml
+    from agentplatform.scaffold import create_agent
+
+    create_agent(name="qbr_nudge", owner="denis.miano",
+                 subscribes_to=["renewal.risk_signal"], tools=["salesforce"],
+                 description="Nudges CS before renewal.")
+
+    module = scaffold_sandbox / "agents" / "qbr_nudge" / "agent.py"
+    assert module.exists() and (scaffold_sandbox / "agents" / "qbr_nudge" / "__init__.py").exists()
+    # The generated stub must be valid Python, or onboarding produced a broken agent.
+    compile(module.read_text(), str(module), "exec")
+
+    entry = yaml.safe_load((scaffold_sandbox / "config" / "registry.yaml").read_text())["agents"][0]
+    assert entry["name"] == "qbr_nudge"
+    assert entry["owner"] == "denis.miano"
+    assert entry["handler"] == "agents.qbr_nudge.agent:handle"
+    # A review date is stamped now, so the registry can flag it going stale.
+    assert entry["last_reviewed"] and entry["review_interval_days"] == 90
+    # Slack is added because the generated stub notifies; the grant must match.
+    assert "slack" in entry["tools"]
+
+
+def test_generated_entry_satisfies_the_registry_contract(scaffold_sandbox):
+    import yaml
+    from agentplatform.registry import AgentEntry
+    from agentplatform.scaffold import create_agent
+
+    create_agent(name="qbr_nudge", owner="denis.miano",
+                 subscribes_to=["renewal.risk_signal"], tools=["salesforce"], description="d")
+    raw = yaml.safe_load((scaffold_sandbox / "config" / "registry.yaml").read_text())["agents"][0]
+    # Validates against the same model the platform loads with: if this parses,
+    # the agent is genuinely onboardable, not just written to disk.
+    assert AgentEntry(**raw).name == "qbr_nudge"
+
+
 # ── Payload shape tolerance ────────────────────────────────────────────────────
 # The brief references a payload sample we were not given. These pin the aliases
 # we accept, so a differently-shaped-but-equivalent payload still routes, while
