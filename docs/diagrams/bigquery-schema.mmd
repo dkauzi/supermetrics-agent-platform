@@ -1,0 +1,37 @@
+erDiagram
+    agent_events ||--o{ agent_run_steps : "event_id"
+    agent_run_steps ||--o| outcomes : "trace_id"
+    agent_events }o--|| golden_record_accounts : "account_id"
+
+    agent_events {
+        string event_id PK
+        string event_type
+        string source
+        string account_id
+        timestamp occurred_at
+        json payload
+    }
+    agent_run_steps {
+        string trace_id
+        string agent
+        int seq
+        string step
+        string status
+        int latency_ms
+        json detail
+    }
+    golden_record_accounts {
+        string account_id PK
+        string renewal_risk_driver
+        string renewal_risk_severity
+        float confidence
+        string updated_by
+        string trace_id
+        int revision
+    }
+    outcomes {
+        string trace_id PK
+        string driver
+        string verdict
+        string reviewer
+    }

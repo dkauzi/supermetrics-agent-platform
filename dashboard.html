@@ -65,6 +65,9 @@
   .bar.low i{background:var(--err)} .bar.mid i{background:var(--warn)}
   .muted{color:var(--muted)}
   .note{padding:10px 16px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line)}
+  .navlink{color:var(--muted);text-decoration:none;font-size:12.5px;font-weight:600;
+           padding:5px 10px;border:1px solid var(--line);border-radius:6px;margin-right:8px}
+  .navlink:hover{color:var(--accent);border-color:var(--accent)}
   .plain{padding:16px}
   .plain-head{font-size:15.5px;font-weight:640;letter-spacing:-.01em;margin-bottom:10px}
   .plain-list{margin:0;padding-left:20px;font-size:14px;line-height:1.65}
@@ -80,6 +83,10 @@
   <h1>Agent Platform</h1>
   <span class="sub">Observability &amp; learning loop · every run logged, every decision explained</span>
   <span style="flex:1"></span>
+  <a class="navlink" target="_blank" rel="noopener"
+     href="https://github.com/dkauzi/supermetrics-agent-platform/blob/main/docs/ARCHITECTURE.md">Architecture</a>
+  <a class="navlink" target="_blank" rel="noopener"
+     href="https://github.com/dkauzi/supermetrics-agent-platform">Repo</a>
   <span id="mode"></span>
   <button onclick="loadAll()">Refresh</button>
 </header>

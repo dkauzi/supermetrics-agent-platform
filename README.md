@@ -117,7 +117,7 @@ Then, in order: SQLite → BigQuery (the implementation exists, `warehouse_bigqu
 ### Deep dives
 
 - [docs/PRESENTATION.md](docs/PRESENTATION.md) - the 20 minute walkthrough
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - cloud deployment proposal + diagrams
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - cloud deployment proposal + diagrams ([architecture PNG](docs/diagrams/cloud-architecture.png) for slides)
 - [docs/RUNBOOK.md](docs/RUNBOOK.md) - prompt rollback, on-call procedures
 - [docs/LIVE_MODIFICATION.md](docs/LIVE_MODIFICATION.md) - how to extend it, worked examples
 - [docs/AI_BUILD_LOG.md](docs/AI_BUILD_LOG.md) - how I drove the coding agent

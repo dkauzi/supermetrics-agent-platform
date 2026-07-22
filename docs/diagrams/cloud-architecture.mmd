@@ -1,0 +1,80 @@
+%% Reads strictly top to bottom: trigger at the top, consequences at the bottom.
+%% Inbound webhooks and outbound writes are drawn as separate blocks on purpose.
+%% They are the same four systems, but merging them creates a cycle that makes
+%% the layout read backwards, and the direction of travel is the point.
+flowchart TB
+    classDef vendor fill:#e6edfb,stroke:#3f63b5,color:#16233d
+    classDef edgecls fill:#fde8ea,stroke:#c0455a,color:#3d1620
+    classDef run fill:#e2f4ea,stroke:#2f8f5b,color:#123626
+    classDef bus fill:#fdf3dc,stroke:#b98a1e,color:#3d2f0f
+    classDef store fill:#f1e8fb,stroke:#7c4fb5,color:#251437
+    classDef obs fill:#e9eef2,stroke:#5a6b7a,color:#1c252d
+
+    subgraph inbound["1 · Triggers in"]
+        direction LR
+        SF[Salesforce<br/><i>renewal approaching</i>]:::vendor
+        GS[Gainsight<br/><i>health score dropped</i>]:::vendor
+        ZD[Zendesk<br/><i>ticket spike</i>]:::vendor
+    end
+
+    LB["Cloud Load Balancer + Cloud Armor<br/><i>WAF · rate limit · HMAC signature verify</i>"]:::edgecls
+    ING["<b>Cloud Run · ingress</b><br/>normalise · validate · dedupe<br/><i>never calls a model, so it always answers before the vendor times out</i>"]:::run
+    PS(["<b>Pub/Sub · agent-events</b><br/><i>the decoupling point: agents subscribe, nothing is hardwired</i>"]):::bus
+    DLQ(["Dead-letter queue<br/><i>malformed, or 5 failed attempts</i>"]):::bus
+
+    subgraph workers["2 · Cloud Run agent workers · scale to zero · one revision each"]
+        direction LR
+        W1[renewal_risk]:::run
+        W2[support_escalation]:::run
+        W3[platform_qa]:::run
+        W4["next agent<br/><i>registry entry + module</i>"]:::run
+    end
+
+    subgraph shared["3 · Shared platform services · written once, used by every agent"]
+        direction LR
+        REG[("Agent Registry<br/>Firestore")]:::store
+        SM["Secret Manager<br/><i>vendor + model keys</i>"]:::store
+        IDEM[("Memorystore Redis<br/><i>idempotency keys</i>")]:::store
+        OR["OpenRouter<br/><i>model fallback chain</i>"]:::store
+    end
+
+    subgraph outbound["4 · Actions out"]
+        direction LR
+        SFW["Salesforce<br/><i>task</i>"]:::vendor
+        GSW["Gainsight<br/><i>CTA</i>"]:::vendor
+        HSW["HubSpot<br/><i>engagement read</i>"]:::vendor
+        SLACK["Slack<br/><i>alert · approval request</i>"]:::vendor
+    end
+
+    subgraph bq["5 · BigQuery · Golden Record and full audit trail"]
+        direction LR
+        T1[(agent_events)]:::store
+        T2[(agent_run_steps)]:::store
+        T3[(golden_record_accounts)]:::store
+        T4[(outcomes<br/><i>human verdicts</i>)]:::store
+    end
+
+    subgraph obs["6 · Observability · two systems, two questions"]
+        direction LR
+        CT["Cloud Trace<br/><i>OTel spans<br/>where did the time go</i>"]:::obs
+        LK["Looker Studio<br/><i>why did the agent do that</i>"]:::obs
+        CM["Cloud Monitoring<br/><i>SLOs · spend · DLQ alerts</i>"]:::obs
+    end
+
+    inbound ==>|webhooks| LB
+    LB ==> ING
+    ING ==>|validated event| PS
+    ING -.->|rejected, with a reason| DLQ
+    PS ==>|fan-out by subscription| workers
+    PS -.->|retries exhausted| DLQ
+
+    workers -->|auth · idempotency · model| shared
+    workers ==>|write findings| outbound
+    workers ==>|one row per step| bq
+    workers -->|spans| CT
+
+    SLACK -.->|human verdict closes the loop| T4
+    T4 -.->|calibration, read at analysis time| workers
+    bq --> LK
+    bq --> CM
+    CT --> CM

@@ -6,81 +6,11 @@ The local build maps 1:1 onto this. Nothing here is a redesign - `store.py` alre
 
 ## Target architecture
 
-```mermaid
-flowchart TB
-    subgraph vendors["Vendor systems"]
-        SF[Salesforce]:::v
-        GS[Gainsight]:::v
-        ZD[Zendesk]:::v
-    end
+Rendered from [`diagrams/cloud-architecture.mmd`](diagrams/cloud-architecture.mmd) with `./scripts/render_diagrams.sh`. The `.mmd` is the source; this image is committed so nothing needs a toolchain to view it.
 
-    subgraph edge["Edge"]
-        LB[Cloud Load Balancer<br/>+ Cloud Armor<br/><i>WAF, rate limit, HMAC verify</i>]:::e
-    end
+![Cloud architecture](diagrams/cloud-architecture.svg)
 
-    subgraph ingest["Ingestion - thin and fast"]
-        ING[Cloud Run: ingress<br/><i>normalise, validate, dedupe</i>]:::c
-    end
-
-    subgraph bus["Event routing"]
-        PS[Pub/Sub topic<br/>agent-events]:::b
-        DLQ[Pub/Sub DLQ<br/><i>after 5 attempts</i>]:::d
-    end
-
-    subgraph workers["Agent execution"]
-        W1[Cloud Run: renewal_risk]:::c
-        W2[Cloud Run: support_escalation]:::c
-        W3[Cloud Run: future agents]:::c
-    end
-
-    subgraph shared["Shared platform services"]
-        REG[(Agent Registry<br/>Firestore)]:::s
-        SM[Secret Manager<br/><i>vendor + OpenRouter keys</i>]:::s
-        IDEM[(Memorystore Redis<br/><i>idempotency keys</i>)]:::s
-    end
-
-    subgraph llm["Model access"]
-        OR[OpenRouter<br/><i>model fallback chain</i>]:::x
-    end
-
-    subgraph data["Warehouse - BigQuery"]
-        BQE[(agent_events)]:::q
-        BQS[(agent_run_steps)]:::q
-        BQG[(golden_record_accounts)]:::q
-        BQO[(outcomes)]:::q
-    end
-
-    subgraph obs["Observability"]
-        LOG[Cloud Logging<br/><i>structured JSON</i>]:::o
-        MON[Cloud Monitoring<br/><i>SLOs + alerts</i>]:::o
-        LK[Looker Studio<br/><i>agent + learning dashboards</i>]:::o
-    end
-
-    SF & GS & ZD -->|webhook| LB --> ING
-    ING -->|validated event| PS
-    ING -.->|rejected| DLQ
-    PS --> W1 & W2 & W3
-    PS -.->|exhausted retries| DLQ
-    W1 & W2 --> REG & SM & IDEM
-    W1 -->|analysis| OR
-    W1 & W2 -->|writes back| SF & GS
-    W1 & W2 -->|Slack alert| SLACK[Slack]:::x
-    W1 & W2 -->|trace rows| BQE & BQS & BQG
-    LK -->|human verdicts| BQO
-    BQO -->|calibration read at analysis time| W1
-    W1 & W2 --> LOG --> MON
-    BQS --> LK
-
-    classDef v fill:#e8f0fe,stroke:#4285f4,color:#111
-    classDef e fill:#fce8e6,stroke:#ea4335,color:#111
-    classDef c fill:#e6f4ea,stroke:#34a853,color:#111
-    classDef b fill:#fef7e0,stroke:#fbbc04,color:#111
-    classDef d fill:#fce8e6,stroke:#c5221f,color:#111
-    classDef s fill:#f3e8fd,stroke:#a142f4,color:#111
-    classDef q fill:#e0f7fa,stroke:#00acc1,color:#111
-    classDef o fill:#eceff1,stroke:#546e7a,color:#111
-    classDef x fill:#fff,stroke:#999,color:#111
-```
+[Full-size PNG](diagrams/cloud-architecture.png) for slides.
 
 ## Why each choice
 
@@ -97,45 +27,9 @@ flowchart TB
 
 ## BigQuery layout
 
-```mermaid
-erDiagram
-    agent_events ||--o{ agent_run_steps : "event_id"
-    agent_run_steps ||--o| outcomes : "trace_id"
-    agent_events }o--|| golden_record_accounts : "account_id"
+![BigQuery schema](diagrams/bigquery-schema.svg)
 
-    agent_events {
-        string event_id PK
-        string event_type
-        string source
-        string account_id
-        timestamp occurred_at
-        json payload
-    }
-    agent_run_steps {
-        string trace_id
-        string agent
-        int seq
-        string step
-        string status
-        int latency_ms
-        json detail
-    }
-    golden_record_accounts {
-        string account_id PK
-        string renewal_risk_driver
-        string renewal_risk_severity
-        float confidence
-        string updated_by
-        string trace_id
-        int revision
-    }
-    outcomes {
-        string trace_id PK
-        string driver
-        string verdict
-        string reviewer
-    }
-```
+Source: [`diagrams/bigquery-schema.mmd`](diagrams/bigquery-schema.mmd).
 
 - `agent_events`, `agent_run_steps`, `outcomes`: **append-only**, streaming inserts, partitioned by ingestion date, clustered on `(agent, account_id)`. Append-only means the audit trail cannot be quietly rewritten.
 - `golden_record_accounts`: `MERGE` on `account_id`, updating only the columns this platform has authority over. Every row carries `updated_by` and `trace_id`, so any value traces back to the run that produced it.
