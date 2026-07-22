@@ -17,6 +17,8 @@ Tab 2 at the repo root. Browser on http://127.0.0.1:8000. Confirm `.env` has the
 
 Have a second terminal ready with `LLM_MODE=offline` exported, as your safety net if the wifi dies.
 
+**Do this once before the day:** `docker compose up --build`. The image has never been built (no Docker daemon on the machine it was written on), so prove it works, or drop the Jaeger moment from the script and say the tracing is wired but the container is unproven. Do not find out live.
+
 ---
 
 ## 1. Frame it (90 seconds, no slides)
@@ -67,6 +69,10 @@ Then the terminal version, because on-call at 2am nobody wants a browser:
 
 Scroll the dashboard: **agent registry** (owner, subscriptions, overdue review), **integrations** (per-vendor policy chain and circuit state), **cost**, **guardrails**, **learning loop**.
 
+If you have `docker compose up` running, open Jaeger on :16686 for ten seconds:
+
+> "Standard OpenTelemetry as well, one trace per run with each step as a child span. That answers 'where did the time go'. It does *not* answer 'why did the agent conclude that', which is why both exist. They cross-reference by id."
+
 ---
 
 ## 4. The findings (4 minutes) - your strongest material
@@ -101,7 +107,7 @@ Open `docs/ARCHITECTURE.md`, show the diagram, do not narrate every box. Make th
 
 ## 6. Close (30 seconds)
 
-> "The honest summary: the vendor clients are mocks, and the BigQuery adapter hasn't run against a real dataset. Everything else you've seen actually executes: 67 tests, the eval gate, the self-audit, all green in CI on three Python versions. What I'd build next is the approval loop closing properly, so a Slack approve button writes back and feeds the calibration table."
+> "The honest summary: the vendor clients are mocks, and the BigQuery adapter hasn't run against a real dataset. Everything else you've seen actually executes: 74 tests, the eval gate, the self-audit, all green in CI on three Python versions. What I'd build next is the approval loop closing properly, so a Slack approve button writes back and feeds the calibration table."
 
 ---
 
@@ -116,6 +122,9 @@ Open `docs/ARCHITECTURE.md`, show the diagram, do not narrate every box. Make th
 | "What about cost?" | `GET /cost`, per-account throttle, soft ceiling, degrade to human not to silence. |
 | "GDPR?" | Identifiers pseudonymised before the payload leaves for OpenRouter, restored in output. Be honest it's minimisation, not anonymisation. |
 | "What would you do differently?" | Async ingestion, approval write-back, and a real BigQuery run. |
+| "Why not just use OpenTelemetry?" | I do, both. OTel answers "where did the time go"; the decision trace answers "why did it conclude that". Sampling would lose the one run someone asks about, and no CS lead opens Jaeger. Each carries the other's ids. `docker compose up` and show Jaeger. |
+| "Why functions, not a BaseAgent class?" | The registry entry *is* the interface, and it is data, so the platform can validate ownership, tool grants and review dates without importing anything. A base class puts that contract in Python where only Python can read it. |
+| "Why GCP and not AWS?" | The Golden Record is already in BigQuery. Same project means the warehouse is a native sink, not an export job, and IAM is one story. On AWS I'd use API Gateway → SQS → Fargate workers, with the same interfaces. |
 
 ## If something breaks live
 

@@ -7,3 +7,9 @@ httpx>=0.28
 PyYAML>=6.0
 python-dotenv>=1.0
 pytest>=8.3
+
+# Optional. Without these installed, telemetry.py degrades to no-ops and the
+# platform is unaffected: observability tooling must never be able to take down
+# the thing it observes. Needed only to export spans to Jaeger/Cloud Trace.
+opentelemetry-sdk>=1.29
+opentelemetry-exporter-otlp-proto-http>=1.29

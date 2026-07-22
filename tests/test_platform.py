@@ -521,6 +521,109 @@ def test_trusted_run_writes_without_asking(platform):
     assert record["data"]["renewal_risk_write_status"] == "asserted"
 
 
+# ── OpenTelemetry ──────────────────────────────────────────────────────────────
+
+def test_all_step_spans_nest_under_one_run_span(platform, monkeypatch):
+    """Steps must be children of the run, not separate root traces.
+
+    The first version opened a span per step with no parent, so a tracing backend
+    showed a pile of unrelated one-span traces instead of one run. Verified here
+    against our own nesting logic, no SDK required.
+    """
+    from agentplatform import telemetry
+    from contextlib import contextmanager
+
+    opened: list[str] = []
+    depth = {"current": 0, "max_at_step": 0}
+
+    @contextmanager
+    def fake_span(name, **attrs):
+        opened.append(name)
+        depth["current"] += 1
+        if name.endswith(".run") is False:
+            depth["max_at_step"] = max(depth["max_at_step"], depth["current"])
+        try:
+            yield {"otel_trace_id": "t" * 32, "otel_span_id": "s" * 16}
+        finally:
+            depth["current"] -= 1
+
+    monkeypatch.setattr(telemetry, "span", fake_span)
+    platform.ingest("gainsight", load_sample("webhook_health_score_drop.json"))
+
+    run_spans = [n for n in opened if n.endswith(".run")]
+    assert run_spans, "a run-level span must be opened"
+    # Depth >= 2 while a step is open proves the step nested inside the run span.
+    assert depth["max_at_step"] >= 2, "step spans are not nested under the run span"
+    assert depth["current"] == 0, "spans were not all closed"
+
+
+def test_tracing_is_a_no_op_without_a_collector():
+    from agentplatform import telemetry
+    # Observability tooling must never be able to take down what it observes.
+    assert telemetry.init_telemetry() is False
+    with telemetry.span("anything", key="value") as ids:
+        assert ids == {}
+
+
+def test_steps_carry_the_span_ids_for_cross_referencing(platform, monkeypatch):
+    from agentplatform import telemetry
+    from contextlib import contextmanager
+
+    @contextmanager
+    def fake_span(name, **attrs):
+        yield {"otel_trace_id": "a" * 32, "otel_span_id": "b" * 16}
+
+    monkeypatch.setattr(telemetry, "span", fake_span)
+    result = platform.ingest("gainsight", load_sample("webhook_health_score_drop.json"))
+
+    steps = platform.warehouse.steps_for_trace(result["trace_ids"][0])
+    linked = [s for s in steps if s["detail"].get("otel_trace_id")]
+    # Without this you cannot get from a latency spike back to the business reason.
+    assert linked, "decision rows must carry the span ids"
+
+
+# ── The HTTP surface ───────────────────────────────────────────────────────────
+# Added after a NameError in app.py survived a fully green suite: nothing
+# imported the module, so 67 passing tests said nothing about whether the service
+# could start. Any file with no test importing it is untested, however green the
+# run looks.
+
+def test_the_app_module_imports():
+    """If this fails, the service cannot boot, whatever the other tests say."""
+    import app
+    assert app.app is not None
+
+
+def test_every_endpoint_the_dashboard_calls_responds():
+    from fastapi.testclient import TestClient
+    import app
+
+    with TestClient(app.app) as client:
+        for path in ("/healthz", "/traces", "/registry", "/dead-letters",
+                     "/calibration", "/quality", "/tools", "/cost"):
+            assert client.get(path).status_code == 200, f"{path} is broken"
+
+
+def test_healthz_reports_tracing_state_honestly():
+    from fastapi.testclient import TestClient
+    import app
+
+    with TestClient(app.app) as client:
+        body = client.get("/healthz").json()
+    # False without a collector configured. Claiming otherwise would make the
+    # health endpoint lie about observability, which is the worst thing it could lie about.
+    assert body["otel_tracing"] is False
+    assert body["status"] == "ok"
+
+
+def test_unknown_trace_is_a_404_not_a_500():
+    from fastapi.testclient import TestClient
+    import app
+
+    with TestClient(app.app) as client:
+        assert client.get("/traces/tr_does_not_exist/why").status_code == 404
+
+
 # ── "Why did this agent do that?" for a non-engineer ───────────────────────────
 
 JARGON = ["trace_id", "tr_", "rule_id", "event_type", "health_score.dropped",

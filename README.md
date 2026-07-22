@@ -1,7 +1,7 @@
 # Renewal Risk Analyser and Router
 
 [![CI](https://github.com/dkauzi/supermetrics-agent-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/dkauzi/supermetrics-agent-platform/actions/workflows/ci.yml)
-[![tests](https://img.shields.io/badge/tests-67%20passing-brightgreen)](tests/test_platform.py)
+[![tests](https://img.shields.io/badge/tests-74%20passing-brightgreen)](tests/test_platform.py)
 [![eval gate](https://img.shields.io/badge/golden%20eval-gated%20in%20CI-blue)](tests/golden/run_eval.py)
 [![python](https://img.shields.io/badge/python-3.11%20|%203.12%20|%203.13-blue)](.github/workflows/ci.yml)
 
@@ -83,6 +83,20 @@ That last one is worth calling out. Tracing, idempotency, circuit breaking, rate
 
 My test before shipping: *if a vendor changes something or a number moves, do I edit one place or ten?*
 
+### Two observability systems, deliberately
+
+**OpenTelemetry** answers *"where did the time go, and what called what?"* Standard spans, exported over OTLP, so Cloud Trace, Jaeger, Tempo or Datadog work with no code change. One trace per agent run, every step a child span.
+
+**The decision trace** answers *"why did this agent conclude that?"* Which rule matched, on which values, under which prompt version, and what a human said about it afterwards. That is a business record with a retention policy, queryable in SQL, joinable to revenue.
+
+Using OTel for the second job is the common mistake: sampling means you lose the one run someone asks about, spans expire in weeks, and no CS lead will ever open Jaeger. Each row carries the other system's ids, so you can jump from a latency spike to the business reason and back.
+
+```bash
+docker compose up --build     # platform on :8000, Jaeger on :16686
+```
+
+Tracing is an optional dependency. With no collector configured it cleanly no-ops, because observability tooling must never be able to take down the thing it observes.
+
 ### Debugging this live in production
 
 1. `GET /traces/{id}/why` returns two views of one run: `plain` for whoever is asking, and the rule-and-values version for whoever is fixing it. They come from the same trace, so they cannot disagree.
@@ -113,5 +127,6 @@ Then, in order: SQLite → BigQuery (the implementation exists, `warehouse_bigqu
 - `warehouse_bigquery.py` is a complete implementation whose **SQL is asserted in tests but has never run against a live BigQuery dataset** (no GCP credentials for this exercise).
 - Vendor clients are mocks over a fixture dataset. They honour the real interface, retry semantics and idempotency, but nothing crosses the network except the LLM call.
 - Pseudonymisation before the LLM call is data *minimisation*, not GDPR anonymisation: the mapping lives in memory for the run, and metrics could in principle be linkable.
+- The OpenTelemetry path is verified (spans nest correctly under one trace per run, ids land on decision rows, and it no-ops without a collector), but **`docker compose up` has not been executed** - no Docker daemon on the build machine. The compose file parses and the Dockerfile's inputs all exist; the image build itself is unproven.
 
-`pytest -q` → 67 tests, weighted to failure paths. `python cli.py eval` → golden eval gate.
+`pytest -q` → 74 tests, weighted to failure paths. `python cli.py eval` → golden eval gate.

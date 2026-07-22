@@ -12,6 +12,8 @@ routes and a UI, not a log file and a grep.
 
 from __future__ import annotations
 
+import os
+
 import json
 from pathlib import Path
 from typing import Any
@@ -23,11 +25,16 @@ from agentplatform import build_platform
 from agentplatform.config import data_dir
 from agentplatform.events import UnknownEventSource
 from agentplatform.feedback import Calibration, record_outcome
+from agentplatform import telemetry
 from agentplatform.limits import spend_report
 from agents.platform_qa.agent import is_guarded_rejection
 
 app = FastAPI(title="Supermetrics Agent Platform", version="1.0.0")
 platform = build_platform()
+
+# No-ops unless OTEL_EXPORTER_OTLP_ENDPOINT is set and the SDK is installed, so
+# local runs and CI are unaffected. `docker compose up` points this at Jaeger.
+telemetry.init_telemetry(os.getenv("OTEL_SERVICE_NAME", "agent-platform"))
 
 DASHBOARD = Path(__file__).parent / "dashboard.html"
 
@@ -42,6 +49,9 @@ def healthz() -> dict[str, Any]:
         "agents_review_due": len(platform.registry.review_due()),
         "event_types": platform.registry.event_types(),
         "llm_model_chain": platform.config.get("llm.model_chain"),
+        # Reported honestly: false when the SDK is absent or no collector is
+        # configured, rather than implying spans are going somewhere they are not.
+        "otel_tracing": telemetry.enabled(),
     }
 
 

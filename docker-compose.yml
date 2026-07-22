@@ -1,0 +1,38 @@
+# Local stack: the platform plus a real tracing backend.
+#
+#   docker compose up --build
+#   dashboard  http://localhost:8000
+#   jaeger     http://localhost:16686
+#
+# Jaeger is here to make the OpenTelemetry claim demonstrable rather than
+# asserted. Run the demo, then open Jaeger and see the same runs as spans with
+# their latency breakdown, cross-referenced to the decision trace by trace_id.
+
+services:
+  platform:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # Spans go to Jaeger. Unset this and tracing cleanly no-ops.
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: agent-platform
+      LLM_MODE: ${LLM_MODE:-offline}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      WAREHOUSE: sqlite
+    volumes:
+      # Traces survive a restart, so a demo is not lost to a container blip.
+      - platform-data:/app/data
+    depends_on:
+      - jaeger
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    ports:
+      - "16686:16686"   # UI
+      - "4318:4318"     # OTLP HTTP
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+
+volumes:
+  platform-data:

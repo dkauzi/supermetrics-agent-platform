@@ -15,10 +15,11 @@ import logging
 import sys
 import time
 import uuid
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from datetime import datetime, timezone
 from typing import Any, Iterator
 
+from . import telemetry
 from .events import Event
 from .store import Warehouse
 
@@ -109,6 +110,20 @@ class RunTrace:
         self._seq = 0
         self.cost_usd = 0.0
 
+        # One root span held open for the whole run, so each step nests beneath it
+        # as a child. Without this every step starts its own root trace and the
+        # tracing backend shows a flat pile of unrelated one-span traces, which is
+        # exactly what distributed tracing exists to avoid.
+        self._spans = ExitStack()
+        self.otel_ids = self._spans.enter_context(
+            telemetry.span(
+                f"agent.{agent}.run",
+                **{"agent.name": agent, "agent.trace_id": self.trace_id,
+                   "account.id": event.account_id, "event.type": event.event_type,
+                   "event.source": event.source},
+            )
+        )
+
         self.warehouse.attach_trace(event.event_id, self.trace_id)
         self.record(
             "run_started",
@@ -116,6 +131,7 @@ class RunTrace:
             event_type=event.event_type,
             source=event.source,
             account_id=event.account_id,
+            **self.otel_ids,
         )
 
     def _next_seq(self) -> int:
@@ -150,19 +166,33 @@ class RunTrace:
 
     @contextmanager
     def step(self, name: str) -> Iterator[StepHandle]:
-        """Time a step, capture its detail, and never let an error go unlogged."""
+        """Time a step, capture its detail, and never let an error go unlogged.
+
+        Emits an OpenTelemetry span as well as the decision row. The two carry
+        each other's ids, so a latency spike in a tracing backend leads to the
+        business reason for that run, and back. See telemetry.py for why both
+        exist rather than one replacing the other.
+        """
         handle = StepHandle()
         start = time.perf_counter()
-        try:
-            yield handle
-        except Exception as exc:
-            elapsed = int((time.perf_counter() - start) * 1000)
-            self.record(name, ERROR, latency_ms=elapsed,
-                        error=f"{type(exc).__name__}: {exc}", **handle.detail)
-            raise
-        else:
-            elapsed = int((time.perf_counter() - start) * 1000)
-            self.record(name, handle.status, latency_ms=elapsed, **handle.detail)
+
+        with telemetry.span(f"agent.{self.agent}.{name}",
+                            **{"agent.name": self.agent,
+                               "agent.trace_id": self.trace_id,
+                               "account.id": self.event.account_id,
+                               "event.type": self.event.event_type}) as span_ids:
+            try:
+                yield handle
+            except Exception as exc:
+                elapsed = int((time.perf_counter() - start) * 1000)
+                self.record(name, ERROR, latency_ms=elapsed,
+                            error=f"{type(exc).__name__}: {exc}",
+                            **span_ids, **handle.detail)
+                raise
+            else:
+                elapsed = int((time.perf_counter() - start) * 1000)
+                self.record(name, handle.status, latency_ms=elapsed,
+                            **span_ids, **handle.detail)
 
     def decision(self, name: str, rule_id: str, because: str, **inputs: Any) -> None:
         """Record a branch the agent took, the rule that fired, and the values behind it.
@@ -184,6 +214,12 @@ class RunTrace:
         elapsed = int((time.perf_counter() - self.started_at) * 1000)
         self.record("run_finished", status, latency_ms=elapsed,
                     summary=summary, total_cost_usd=round(self.cost_usd, 6))
+        # Closes the root span. Guarded because a run that failed before finish
+        # must not raise a second, more confusing error on the way out.
+        try:
+            self._spans.close()
+        except Exception:  # noqa: BLE001
+            pass
 
 
 class Observability:
