@@ -12,21 +12,14 @@ policy. They are together here to keep the review surface small.
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from ..config import REPO_ROOT, Config
+from . import fixtures
 from .base import ToolClient
-
-FIXTURES = REPO_ROOT / "samples" / "accounts.json"
-
-
-def _load_fixtures() -> dict[str, Any]:
-    if not FIXTURES.exists():
-        return {}
-    with FIXTURES.open() as handle:
-        return {a["account_id"]: a for a in json.load(handle)}
 
 
 class SalesforceClient(ToolClient):
@@ -36,25 +29,37 @@ class SalesforceClient(ToolClient):
 
     def __init__(self, config: Config) -> None:
         super().__init__(config)
-        self._accounts = _load_fixtures()
         self.written: list[dict[str, Any]] = []
 
     def _execute(self, operation: str, payload: dict[str, Any]) -> dict[str, Any]:
         if operation == "get_account":
-            account = self._accounts.get(payload["account_id"])
+            account = fixtures.salesforce_account(payload["account_id"])
             if account is None:
                 raise ValueError(f"account {payload['account_id']} not found in Salesforce")
-            return {
-                "id": account["account_id"],
-                "name": account["name"],
-                "arr_usd": account["arr_usd"],
-                "renewal_date": account["renewal_date"],
-                "owner": account["owner"],
-                "owner_slack": account["owner_slack"],
-                "cs_lead_slack": account.get("cs_lead_slack"),
-                "segment": account["segment"],
-                "contract_start": account.get("contract_start"),
+            # Returned whole rather than re-picked field by field. The supplied
+            # bundle carries no renewal_date - that arrives on the trigger event,
+            # which is how it works in practice - and a hardcoded key list turns
+            # that into a KeyError instead of a missing optional field.
+            return {"id": account["account_id"], **account}
+
+        if operation == "update_opportunity":
+            # Object and field names come from `mock_crm_write_examples` in the
+            # supplied payload. Writing our own invented shape would have looked
+            # fine in a demo and been wrong against their actual schema.
+            record = {
+                "id": payload.get("opportunity_id"),
+                "object": "Opportunity",
+                "status": "updated",
+                "written_at": datetime.now(timezone.utc).isoformat(),
+                "fields": {
+                    "Renewal_Risk_Level__c": payload.get("Renewal_Risk_Level__c"),
+                    "Risk_Driver__c": payload.get("Risk_Driver__c"),
+                    "Last_Risk_Analysis_Date__c": payload.get("Last_Risk_Analysis_Date__c"),
+                },
+                "trace_id": payload.get("trace_id"),
             }
+            self.written.append(record)
+            return record
 
         if operation == "create_task":
             record = {
@@ -77,15 +82,31 @@ class GainsightClient(ToolClient):
 
     def __init__(self, config: Config) -> None:
         super().__init__(config)
-        self._accounts = _load_fixtures()
         self.written: list[dict[str, Any]] = []
 
     def _execute(self, operation: str, payload: dict[str, Any]) -> dict[str, Any]:
         if operation == "get_health":
-            account = self._accounts.get(payload["account_id"])
-            if account is None:
+            health = fixtures.gainsight_health(payload["account_id"])
+            if health is None:
                 raise ValueError(f"account {payload['account_id']} not found in Gainsight")
-            return account["health"]
+            return health
+
+        if operation == "create_timeline_activity":
+            # CSTA (Timeline Activity), per the supplied payload's write example.
+            record = {
+                "id": f"csta_{abs(hash(payload.get('risk_summary', ''))) % 10**10:010d}",
+                "object": "CSTA",
+                "company_id": payload.get("gainsight_company_id"),
+                "written_at": datetime.now(timezone.utc).isoformat(),
+                "fields": {
+                    "risk_flag": payload.get("risk_flag"),
+                    "risk_summary": payload.get("risk_summary"),
+                    "created_by_agent": payload.get("created_by_agent"),
+                },
+                "trace_id": payload.get("trace_id"),
+            }
+            self.written.append(record)
+            return record
 
         if operation == "create_cta":
             record = {
@@ -107,14 +128,13 @@ class ZendeskClient(ToolClient):
 
     def __init__(self, config: Config) -> None:
         super().__init__(config)
-        self._accounts = _load_fixtures()
 
     def _execute(self, operation: str, payload: dict[str, Any]) -> dict[str, Any]:
         if operation == "get_ticket_summary":
-            account = self._accounts.get(payload["account_id"])
-            if account is None:
+            support = fixtures.zendesk_tickets(payload["account_id"])
+            if support is None:
                 raise ValueError(f"account {payload['account_id']} not found in Zendesk")
-            return account["health"].get("support", {})
+            return support
 
         raise ValueError(f"unsupported zendesk operation: {operation}")
 
@@ -131,13 +151,14 @@ class HubSpotClient(ToolClient):
 
     def __init__(self, config: Config) -> None:
         super().__init__(config)
-        self._accounts = _load_fixtures()
 
     def _execute(self, operation: str, payload: dict[str, Any]) -> dict[str, Any]:
         if operation == "get_engagement":
-            account = self._accounts.get(payload["account_id"])
+            account = fixtures._local_accounts().get(payload["account_id"])
             if account is None:
-                raise ValueError(f"account {payload['account_id']} not found in HubSpot")
+                # Supplied accounts carry no marketing data. Absent is a valid
+                # answer for a supporting signal; the agent proceeds without it.
+                return {}
             return account["health"].get("marketing", {})
 
         raise ValueError(f"unsupported hubspot operation: {operation}")
@@ -159,8 +180,25 @@ class SlackClient(ToolClient):
                 "channel": payload["channel"],
                 "text": payload["text"],
                 "blocks": payload.get("blocks", []),
+                "trace_id": payload.get("trace_id"),
                 "ok": True,
+                "delivery": "captured",
             }
+
+            # Set SLACK_WEBHOOK_URL and the same message really posts. The agent
+            # is unchanged either way: mocked and real differ by a transport
+            # detail here, which is the point of putting vendors behind clients.
+            webhook = os.getenv("SLACK_WEBHOOK_URL")
+            if webhook:
+                import httpx
+                response = httpx.post(
+                    webhook,
+                    json={"text": message["text"], "channel": message["channel"]},
+                    timeout=10,
+                )
+                response.raise_for_status()
+                message["delivery"] = "posted"
+
             self.sent.append(message)
             return message
 

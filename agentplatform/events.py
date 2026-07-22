@@ -136,7 +136,29 @@ def normalise_platform(payload: dict[str, Any]) -> Event:
     )
 
 
+def normalise_supermetrics(payload: dict[str, Any]) -> Event:
+    """The `renewal_risk_signal` event from the supplied sample payload.
+
+    Their trigger is flat and pre-correlated: renewal window and health drop
+    arrive together in one event. Ours modelled them as two separate signals.
+    Both map onto the same normalised Event, which is the entire argument for
+    having a normalisation layer - a different vendor emitting a different shape
+    for the same business fact costs one function, not an agent rewrite.
+    """
+    return Event(
+        event_id=_first_present(payload, "event_id", "eventId", "id")
+                 or _fallback_event_id("supermetrics", payload),
+        event_type="renewal.risk_signal",
+        source="supermetrics",
+        account_id=str(_first_present(payload, "account_id", "accountId", default="")),
+        occurred_at=_first_present(payload, "timestamp", "triggeredAt", "triggered_at")
+                    or datetime.now(timezone.utc),
+        payload=payload,
+    )
+
+
 NORMALISERS: dict[str, Callable[[dict[str, Any]], Event]] = {
+    "supermetrics": normalise_supermetrics,
     "gainsight": normalise_gainsight,
     "salesforce": normalise_salesforce,
     "zendesk": normalise_zendesk,

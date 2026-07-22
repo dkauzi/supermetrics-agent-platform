@@ -77,6 +77,22 @@ def build_facts(account: dict[str, Any], health: dict[str, Any],
         "tickets_prev_30d": support.get("tickets_prev_30d"),
         "avg_first_response_hours": support.get("avg_first_response_hours"),
         "csat_30d": support.get("csat_30d"),
+        # Narrative context, kept as prose. The three supplied accounts have
+        # near-identical trigger events and near-identical health drops; the only
+        # thing that separates a departed champion from a broken connector lives
+        # in these strings. Flattening them to numbers would delete the answer.
+        # Each line is individually citable, and the verifier checks quotes
+        # against these exact strings.
+        "usage_snippets": health.get("usage_snippets", []),
+        "cs_notes": health.get("cs_notes", []),
+        "support_ticket_subjects": support.get("ticket_subjects", []),
+        "unresolved_ticket_count": support.get("unresolved_tickets"),
+        "reopened_ticket_count": support.get("reopened_tickets"),
+        "health_score_trend_6mo": health.get("health_score_trend_6mo", []),
+        "connected_data_sources": account.get("connected_data_sources", []),
+        "primary_destination": account.get("primary_destination"),
+        "plan": account.get("plan"),
+        "scheduled_transfers": account.get("scheduled_transfers"),
         "email_open_rate_30d": engagement.get("email_open_rate_30d"),
         "email_open_rate_prev_30d": engagement.get("email_open_rate_prev_30d"),
         "webinar_attendance_90d": engagement.get("webinar_attendance_90d"),

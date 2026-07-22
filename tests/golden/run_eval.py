@@ -31,6 +31,7 @@ from typing import Any
 
 from agentplatform.config import llm_mode
 from agentplatform.events import Event
+from agentplatform.verifier import claim_is_grounded
 
 CASES = Path(__file__).parent / "cases.json"
 EVAL_AGENT = "renewal_risk_eval"
@@ -60,11 +61,9 @@ def _score_case(analysis, meta, case: dict[str, Any], facts: dict[str, Any]) -> 
     cited = {item.metric for item in analysis.evidence}
 
     driver_ok = analysis.driver == case["expected_driver"]
-    grounded = all(
-        item.metric in facts and str(item.value).strip().lower()
-        == str(facts[item.metric]).strip().lower()
-        for item in analysis.evidence
-    )
+    # Same grounding definition the production verifier uses. Reimplementing it
+    # here previously reported 62% on output production had accepted as valid.
+    grounded = all(claim_is_grounded(item, facts) for item in analysis.evidence)
     citation_ok = bool(cited & set(case.get("must_cite_any", []))) if case.get("must_cite_any") else True
 
     # For the ambiguous case, a confident wrong answer is worse than a hedge.
@@ -127,17 +126,31 @@ def run_eval(platform, prompt_version: str | None = None, samples: int = 3) -> i
             event = Event(
                 event_id=f"eval-{case['id']}-{sample}-{datetime.now(timezone.utc).timestamp()}",
                 event_type="health_score.dropped", source="eval",
-                account_id=case["account"]["account_id"],
+                account_id=case.get("supplied_account") or case["account"]["account_id"],
                 occurred_at=datetime.now(timezone.utc),
                 payload={"eval_case": case["id"], "sample": sample},
             )
             platform.warehouse.record_event(event)
             trace = platform.observability.start_run(event, EVAL_AGENT)
 
-            facts = build_facts(case["account"], case["health"])
+            # Cases either carry inline fixtures, or name an account from the
+            # supplied payload and pull it through the same client layer the
+            # agent uses. The latter means the eval exercises the real retrieval
+            # path, not a hand-copied snapshot that can drift from it.
+            if case.get("supplied_account"):
+                from agentplatform.clients import fixtures as supplied_fixtures
+                account = supplied_fixtures.salesforce_account(case["supplied_account"])
+                health = supplied_fixtures.gainsight_health(case["supplied_account"])
+                support = supplied_fixtures.zendesk_tickets(case["supplied_account"]) or {}
+                health = {**health, **{"support": support}}
+                facts = build_facts(account, health)
+                facts["support_ticket_subjects"] = support.get("ticket_subjects", [])
+            else:
+                account = case["account"]
+                facts = build_facts(case["account"], case["health"])
             ctx = EvalContext(event, trace, platform.warehouse, platform.config, _Entry())
 
-            analysis, meta = analyse(ctx, case["account"], facts, {"eval": True})
+            analysis, meta = analyse(ctx, account, facts, {"eval": True})
             score = _score_case(analysis, meta, case, facts)
             trace.finish("ok", summary=f"eval {case['id']} #{sample}: {score['passed']}")
             runs.append(score)

@@ -184,6 +184,27 @@ def tools() -> dict[str, Any]:
     }
 
 
+@app.get("/slack")
+def slack_outbox(limit: int = 20) -> dict[str, Any]:
+    """Every alert the platform has sent, as the account owner would see it.
+
+    The brief asks for one place to observe the agents from, and the Slack
+    message is the actual deliverable - the thing a human reads and acts on.
+    Leaving it captured-but-invisible would mean the one artefact that matters
+    most is the one you cannot see.
+
+    `delivery` is honest: "captured" when mocked, "posted" when SLACK_WEBHOOK_URL
+    is set and it really went to Slack.
+    """
+    client = platform.tools.raw("slack")
+    messages = list(reversed(getattr(client, "sent", [])))[:limit]
+    return {
+        "count": len(messages),
+        "mode": "live" if os.getenv("SLACK_WEBHOOK_URL") else "mocked",
+        "messages": messages,
+    }
+
+
 @app.get("/cost")
 def cost() -> dict[str, Any]:
     """Spend against budget, and what happens when it runs out.

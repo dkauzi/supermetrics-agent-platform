@@ -30,6 +30,10 @@ llm:
   # Schema-invalid output gets one repair round-trip before we fall back to rules.
   max_repair_attempts: 1
   daily_cost_budget_usd: 25.0
+  # The OpenRouter grant provided for this exercise. Tracked as a real budget
+  # with real observability rather than an untracked allowance: knowing what an
+  # agent costs per run, and what remains, is part of operating the platform.
+  grant_total_usd: 50.0
 
 # Vendor call policies, composed per integration.
 #
@@ -134,7 +138,7 @@ eval:
 agents:
   renewal_risk:
     # Prompt rollback is this one line. See docs/RUNBOOK.md.
-    prompt_version: v2
+    prompt_version: v5
     min_confidence: 0.55
 
     human_approval:

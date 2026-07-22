@@ -108,7 +108,16 @@ def spend_report(warehouse: Warehouse, config: Config) -> dict[str, Any]:
 
     soft_ceiling = float(budget) * float(reserve_ratio) if budget else None
 
+    # Lifetime spend against the provided OpenRouter grant. Epoch start means
+    # "everything this warehouse has ever recorded".
+    grant = config.get("llm.grant_total_usd")
+    lifetime = warehouse.llm_spend_since("1970-01-01T00:00:00+00:00")
+
     return {
+        "grant_total_usd": grant,
+        "grant_spent_usd": round(lifetime, 5),
+        "grant_remaining_usd": round(float(grant) - lifetime, 5) if grant else None,
+        "grant_used_pct": round(100 * lifetime / float(grant), 2) if grant else None,
         "daily_budget_usd": budget,
         "soft_ceiling_usd": round(soft_ceiling, 4) if soft_ceiling else None,
         "spent_today_usd": round(spent, 5),

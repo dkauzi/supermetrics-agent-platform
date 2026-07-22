@@ -209,6 +209,37 @@
     <span class="num">05 · The interesting part</span>
     <h2>Three findings from actually building it</h2>
 
+    <h3>Your sample payload caught a real defect, and here is what it was</h3>
+    <p>The three supplied accounts have near-identical triggers and near-identical health
+    drops, deliberately, to expose an analysis step that just reformats the trigger. It
+    exposed one in mine. My prompt returned <code>champion_loss</code> for <b>both</b> Verdant
+    Foods and Northwind Retail, because Northwind's CS notes also mention a contact changing
+    role. Two different accounts, the same answer: exactly the failure the file is built to
+    surface.</p>
+    <p>The discriminator was in the data, not in the model. <b>Northwind's automation stopped
+    too</b> - transfers paused, 18 of 22 seats inactive. One person changing role does not
+    explain that; team-wide withdrawal does. <b>Verdant's automation is healthy</b> - scheduled
+    refreshes running normally - and only person-shaped work stopped, with a named departure
+    holding the sole admin seat. So: when the machinery is fine and only the human work
+    stopped, that is a lost champion. When the machinery stopped too, it is broad
+    disengagement, whoever left.</p>
+    <div class="scroll">
+    <table>
+      <tr><th style="width:26%">Account</th><th style="width:26%">Before</th><th style="width:26%">After</th><th>Now</th></tr>
+      <tr><td>Northwind Retail</td><td><code>champion_loss</code></td><td><code>adoption_decline</code></td><td>correct</td></tr>
+      <tr><td>Bluefin Analytics</td><td><code>data_integration_regression</code></td><td><code>data_integration_regression</code></td><td>correct</td></tr>
+      <tr><td>Verdant Foods</td><td><code>champion_loss</code></td><td><code>champion_loss</code></td><td>correct</td></tr>
+    </table>
+    </div>
+    <div class="say"><b>Why this is the finding I'd lead with</b>
+    The prompt change is not the interesting part. The interesting part is that a regression
+    set caught it before a CS team saw it, all three accounts are now permanent eval cases,
+    and the gate blocks promotion if a future change reintroduces it. That is the difference
+    between a demo and something you can operate.</div>
+    <p class="muted small">Also caught: the eval scored grounding with its own string
+    comparison instead of the production verifier, and reported 62% on output production had
+    already accepted. Two definitions of "grounded" that disagreed. There is now one.</p>
+
     <h3>Hallucination is checkable by code here, not judged by another model</h3>
     <p>The LLM must cite evidence as metric/value pairs. That makes every claim verifiable against
     the data actually fetched, deterministically, with no second model grading the first. If it
@@ -295,9 +326,33 @@ cp .env.example .env          # optional: add OPENROUTER_API_KEY
     and the platform's own self-audit, all green in CI on three Python versions.</p>
   </section>
 
-  <p class="meta">Built with Claude Code, as the brief asks. How I drove it, including the point
-  where it produced tests that asserted whatever the code already did, is written up in
-  <a href="https://github.com/dkauzi/supermetrics-agent-platform/blob/main/docs/AI_BUILD_LOG.md">AI_BUILD_LOG.md</a>.</p>
+  <!-- ── 9 ─────────────────────────────────────────────────────────────── -->
+  <section>
+    <span class="num">09 · Tooling and spend</span>
+    <h2>The coding agent, and where the $50 went</h2>
+    <p><b>Built with Claude Code</b>, as the brief requires. The parts worth knowing are where
+    it needed supervision: it produced tests that asserted whatever the code already did rather
+    than what it should do, and its first OpenTelemetry integration opened a root span per step
+    so a tracing backend would have shown unrelated single-span traces instead of one run per
+    agent. Both are written up in
+    <a href="https://github.com/dkauzi/supermetrics-agent-platform/blob/main/docs/AI_BUILD_LOG.md">AI_BUILD_LOG.md</a>.
+    An agent that writes code you do not review produces exactly the failure class this
+    platform exists to prevent.</p>
+    <p><b>The OpenRouter grant is tracked as a budget, not an allowance.</b> Spend per run,
+    per agent and against the $50 is on the dashboard's cost panel, because knowing what an
+    agent costs and what remains is part of operating one. A full analysis is roughly a cent;
+    a live golden-eval sweep across all cases is about twelve. The platform stops paying for
+    the model at 90% of the daily budget and routes runs to a human rather than either
+    overspending or silently dropping alerts.</p>
+    <div class="say"><b>Where the model is deliberately not used</b>
+    Severity, routing, spend limits, grounding checks and the whole QA agent are
+    deterministic. Every one of them has a correct answer, so a model there would turn a
+    reliable result probabilistic and bill for it.</div>
+  </section>
+
+  <p class="meta">Everything above is reproducible from the repo: <code>python runner.py</code>
+  for the pipeline, <code>python cli.py eval</code> for the gate, <code>python cli.py audit</code>
+  for the platform's own self-check.</p>
 
 </div>
 </body>

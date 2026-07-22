@@ -68,6 +68,11 @@
   .navlink{color:var(--muted);text-decoration:none;font-size:12.5px;font-weight:600;
            padding:5px 10px;border:1px solid var(--line);border-radius:6px;margin-right:8px}
   .navlink:hover{color:var(--accent);border-color:var(--accent)}
+  .msg{border:1px solid var(--line);border-radius:8px;margin:12px 16px;overflow:hidden}
+  .msg-head{display:flex;align-items:center;gap:9px;padding:8px 13px;background:var(--bg);
+            border-bottom:1px solid var(--line);font-size:12.5px}
+  .msg-body{padding:12px 14px;font:13px/1.62 ui-monospace,SFMono-Regular,Menlo,monospace;
+            white-space:pre-wrap;word-break:break-word}
   .plain{padding:16px}
   .plain-head{font-size:15.5px;font-weight:640;letter-spacing:-.01em;margin-bottom:10px}
   .plain-list{margin:0;padding-left:20px;font-size:14px;line-height:1.65}
@@ -126,6 +131,14 @@
       </div>
 
       <div class="card">
+        <h2>Slack outbox - what the account owner actually receives</h2>
+        <div class="body" id="slack"></div>
+        <div class="note">The alert is the deliverable; everything else exists to make it
+          trustworthy. Mocked by default. Set <code>SLACK_WEBHOOK_URL</code> and the same
+          messages really post, with no agent change.</div>
+      </div>
+
+      <div class="card">
         <h2>Cost and runaway protection</h2>
         <div class="body" id="cost"></div>
         <div class="note">Past the soft ceiling the platform stops paying for the model and
@@ -156,84 +169,114 @@
  "/traces": {
   "traces": [
    {
-    "trace_id": "tr_58e45571dc704674",
+    "trace_id": "tr_447bd85b1d084a08",
     "agent": "renewal_risk_eval",
-    "event_id": "eval-ambiguous_must_not_guess-0-1784732500.860876",
-    "started_at": "2026-07-22T15:01:40.863114+00:00",
-    "finished_at": "2026-07-22T15:01:40.870012+00:00",
+    "event_id": "eval-supplied_champion_left-0-1784733897.539341",
+    "started_at": "2026-07-22T15:24:57.542621+00:00",
+    "finished_at": "2026-07-22T15:24:57.559643+00:00",
     "steps": 7,
     "errors": 0,
-    "total_ms": 8
+    "total_ms": 18
    },
    {
-    "trace_id": "tr_d2a7505444214d5b",
+    "trace_id": "tr_09e7033959f84bc3",
     "agent": "renewal_risk_eval",
-    "event_id": "eval-integration_regression-0-1784732500.849296",
-    "started_at": "2026-07-22T15:01:40.851921+00:00",
-    "finished_at": "2026-07-22T15:01:40.859678+00:00",
+    "event_id": "eval-supplied_support_pain-0-1784733897.509915",
+    "started_at": "2026-07-22T15:24:57.513201+00:00",
+    "finished_at": "2026-07-22T15:24:57.537315+00:00",
     "steps": 7,
     "errors": 0,
-    "total_ms": 8
+    "total_ms": 25
    },
    {
-    "trace_id": "tr_c1ad72bd5dbf4555",
+    "trace_id": "tr_421598c2d123463b",
     "agent": "renewal_risk_eval",
-    "event_id": "eval-champion_loss_clear-0-1784732500.838369",
-    "started_at": "2026-07-22T15:01:40.840442+00:00",
-    "finished_at": "2026-07-22T15:01:40.848169+00:00",
+    "event_id": "eval-supplied_usage_dropoff-0-1784733897.492342",
+    "started_at": "2026-07-22T15:24:57.495163+00:00",
+    "finished_at": "2026-07-22T15:24:57.508754+00:00",
     "steps": 7,
     "errors": 0,
-    "total_ms": 8
+    "total_ms": 15
    },
    {
-    "trace_id": "tr_ab30c42d95754df5",
+    "trace_id": "tr_a4d9b305cfb645ee",
     "agent": "renewal_risk_eval",
-    "event_id": "eval-support_burden_clear-0-1784732500.827942",
-    "started_at": "2026-07-22T15:01:40.830060+00:00",
-    "finished_at": "2026-07-22T15:01:40.837269+00:00",
+    "event_id": "eval-ambiguous_must_not_guess-0-1784733897.467224",
+    "started_at": "2026-07-22T15:24:57.474909+00:00",
+    "finished_at": "2026-07-22T15:24:57.490775+00:00",
     "steps": 7,
     "errors": 0,
-    "total_ms": 8
+    "total_ms": 19
    },
    {
-    "trace_id": "tr_8fecbdb263164eea",
+    "trace_id": "tr_8da9ad0240ce4cbc",
     "agent": "renewal_risk_eval",
-    "event_id": "eval-adoption_decline_clear-0-1784732500.816852",
-    "started_at": "2026-07-22T15:01:40.819222+00:00",
-    "finished_at": "2026-07-22T15:01:40.826698+00:00",
+    "event_id": "eval-integration_regression-0-1784733897.443532",
+    "started_at": "2026-07-22T15:24:57.446998+00:00",
+    "finished_at": "2026-07-22T15:24:57.465368+00:00",
     "steps": 7,
     "errors": 0,
-    "total_ms": 8
+    "total_ms": 20
    },
    {
-    "trace_id": "tr_a40cb84a8c4d48fc",
+    "trace_id": "tr_5660ec0cbc724207",
+    "agent": "renewal_risk_eval",
+    "event_id": "eval-champion_loss_clear-0-1784733897.427835",
+    "started_at": "2026-07-22T15:24:57.430510+00:00",
+    "finished_at": "2026-07-22T15:24:57.442359+00:00",
+    "steps": 7,
+    "errors": 0,
+    "total_ms": 13
+   },
+   {
+    "trace_id": "tr_4dc976d43d4445f0",
+    "agent": "renewal_risk_eval",
+    "event_id": "eval-support_burden_clear-0-1784733897.408291",
+    "started_at": "2026-07-22T15:24:57.411018+00:00",
+    "finished_at": "2026-07-22T15:24:57.425713+00:00",
+    "steps": 7,
+    "errors": 0,
+    "total_ms": 16
+   },
+   {
+    "trace_id": "tr_64f669299e334092",
+    "agent": "renewal_risk_eval",
+    "event_id": "eval-adoption_decline_clear-0-1784733897.389192",
+    "started_at": "2026-07-22T15:24:57.393048+00:00",
+    "finished_at": "2026-07-22T15:24:57.406790+00:00",
+    "steps": 7,
+    "errors": 0,
+    "total_ms": 15
+   },
+   {
+    "trace_id": "tr_e89f31ba6b5f4347",
     "agent": "support_escalation",
     "event_id": "zd-evt-2026-07-21-0044",
-    "started_at": "2026-07-22T15:01:40.795472+00:00",
-    "finished_at": "2026-07-22T15:01:40.803080+00:00",
+    "started_at": "2026-07-22T15:24:57.344052+00:00",
+    "finished_at": "2026-07-22T15:24:57.362056+00:00",
     "steps": 7,
     "errors": 0,
-    "total_ms": 10
+    "total_ms": 21
    },
    {
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "agent": "renewal_risk",
     "event_id": "sf-evt-2026-07-21-0007",
-    "started_at": "2026-07-22T15:01:40.685405+00:00",
-    "finished_at": "2026-07-22T15:01:40.791361+00:00",
+    "started_at": "2026-07-22T15:24:57.244310+00:00",
+    "finished_at": "2026-07-22T15:24:57.338889+00:00",
     "steps": 23,
     "errors": 0,
-    "total_ms": 275
+    "total_ms": 205
    },
    {
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "agent": "renewal_risk",
     "event_id": "gs-evt-2026-07-21-0001",
-    "started_at": "2026-07-22T15:01:40.601668+00:00",
-    "finished_at": "2026-07-22T15:01:40.681630+00:00",
+    "started_at": "2026-07-22T15:24:57.139951+00:00",
+    "finished_at": "2026-07-22T15:24:57.237149+00:00",
     "steps": 23,
     "errors": 0,
-    "total_ms": 171
+    "total_ms": 142
    }
   ]
  },
@@ -245,6 +288,7 @@
    "health_score.dropped",
    "platform.audit_requested",
    "renewal.approaching",
+   "renewal.risk_signal",
    "support.ticket_spike"
   ],
   "agents": [
@@ -257,7 +301,8 @@
     "team": "cs-ai",
     "subscribes_to": [
      "health_score.dropped",
-     "renewal.approaching"
+     "renewal.approaching",
+     "renewal.risk_signal"
     ],
     "tools": [
      "salesforce",
@@ -317,11 +362,11 @@
    {
     "id": 2,
     "source": "hubspot",
-    "reason": "unknown_source: No normaliser for source 'hubspot'. Known: ['gainsight', 'platform', 'salesforce', 'zendesk']",
+    "reason": "unknown_source: No normaliser for source 'hubspot'. Known: ['gainsight', 'platform', 'salesforce', 'supermetrics', 'zendesk']",
     "payload": {
      "whatever": true
     },
-    "ts": "2026-07-22T15:01:40.805555+00:00",
+    "ts": "2026-07-22T15:24:57.368970+00:00",
     "guarded": true
    },
    {
@@ -334,7 +379,7 @@
       "current": 20
      }
     },
-    "ts": "2026-07-22T15:01:40.804444+00:00",
+    "ts": "2026-07-22T15:24:57.364613+00:00",
     "guarded": true
    }
   ],
@@ -365,8 +410,8 @@
  },
  "/quality": {
   "eval": {
-   "ran_at": "2026-07-22T15:01:40.871393+00:00",
-   "prompt_version": "v2",
+   "ran_at": "2026-07-22T15:24:57.561009+00:00",
+   "prompt_version": "v5",
    "mode": "offline",
    "samples": 1,
    "models": [
@@ -375,8 +420,8 @@
     "google/gemini-2.0-flash-001"
    ],
    "passed": 5,
-   "total": 5,
-   "driver_accuracy": 1.0,
+   "total": 8,
+   "driver_accuracy": 0.625,
    "grounding_rate": 1.0,
    "consistency": 1.0,
    "cost_usd": 0.0,
@@ -422,6 +467,30 @@
      "passed": true,
      "pass_rate": 1.0,
      "stable": true
+    },
+    {
+     "case": "supplied_usage_dropoff",
+     "expected": "adoption_decline",
+     "actual": "unknown",
+     "passed": false,
+     "pass_rate": 0.0,
+     "stable": true
+    },
+    {
+     "case": "supplied_support_pain",
+     "expected": "data_integration_regression",
+     "actual": "unknown",
+     "passed": false,
+     "pass_rate": 0.0,
+     "stable": true
+    },
+    {
+     "case": "supplied_champion_left",
+     "expected": "champion_loss",
+     "actual": "unknown",
+     "passed": false,
+     "pass_rate": 0.0,
+     "stable": true
     }
    ]
   },
@@ -433,18 +502,18 @@
   "grounding_rejections": 0,
   "recent_fallbacks": [
    {
-    "trace_id": "tr_fd6bbd6bf4204e19",
-    "ts": "2026-07-22T15:01:40.738553+00:00",
+    "trace_id": "tr_79fd1fe1b1934922",
+    "ts": "2026-07-22T15:24:57.292790+00:00",
     "reason": "llm_offline_mode",
     "driver": "champion_loss",
-    "why_url": "/traces/tr_fd6bbd6bf4204e19/why"
+    "why_url": "/traces/tr_79fd1fe1b1934922/why"
    },
    {
-    "trace_id": "tr_88f0c30c016446ad",
-    "ts": "2026-07-22T15:01:40.627978+00:00",
+    "trace_id": "tr_0c790c5220f146d2",
+    "ts": "2026-07-22T15:24:57.195138+00:00",
     "reason": "llm_offline_mode",
     "driver": "adoption_decline",
-    "why_url": "/traces/tr_88f0c30c016446ad/why"
+    "why_url": "/traces/tr_0c790c5220f146d2/why"
    }
   ],
   "recent_grounding_rejections": []
@@ -634,6 +703,10 @@
   "policy_order_note": "Listed outermost first. Order is the contract: dedupe before spending a network call, fail fast when a vendor is down, pace ourselves, then retry."
  },
  "/cost": {
+  "grant_total_usd": 50.0,
+  "grant_spent_usd": 0,
+  "grant_remaining_usd": 50.0,
+  "grant_used_pct": 0.0,
   "daily_budget_usd": 25.0,
   "soft_ceiling_usd": 22.5,
   "spent_today_usd": 0,
@@ -651,13 +724,13 @@
   "throttled_runs": 0,
   "recent_throttled": []
  },
- "/traces/tr_58e45571dc704674": {
-  "trace_id": "tr_58e45571dc704674",
+ "/traces/tr_447bd85b1d084a08": {
+  "trace_id": "tr_447bd85b1d084a08",
   "steps": [
    {
-    "id": 82,
-    "trace_id": "tr_58e45571dc704674",
-    "event_id": "eval-ambiguous_must_not_guess-0-1784732500.860876",
+    "id": 103,
+    "trace_id": "tr_447bd85b1d084a08",
+    "event_id": "eval-supplied_champion_left-0-1784733897.539341",
     "agent": "renewal_risk_eval",
     "seq": 1,
     "step": "run_started",
@@ -666,15 +739,15 @@
     "detail": {
      "event_type": "health_score.dropped",
      "source": "eval",
-     "account_id": "EVAL-5"
+     "account_id": "acct_champion_left"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.863114+00:00"
+    "ts": "2026-07-22T15:24:57.542621+00:00"
    },
    {
-    "id": 83,
-    "trace_id": "tr_58e45571dc704674",
-    "event_id": "eval-ambiguous_must_not_guess-0-1784732500.860876",
+    "id": 104,
+    "trace_id": "tr_447bd85b1d084a08",
+    "event_id": "eval-supplied_champion_left-0-1784733897.539341",
     "agent": "renewal_risk_eval",
     "seq": 2,
     "step": "spend_limits",
@@ -691,12 +764,12 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.864451+00:00"
+    "ts": "2026-07-22T15:24:57.545783+00:00"
    },
    {
-    "id": 84,
-    "trace_id": "tr_58e45571dc704674",
-    "event_id": "eval-ambiguous_must_not_guess-0-1784732500.860876",
+    "id": 105,
+    "trace_id": "tr_447bd85b1d084a08",
+    "event_id": "eval-supplied_champion_left-0-1784733897.539341",
     "agent": "renewal_risk_eval",
     "seq": 3,
     "step": "privacy_minimisation",
@@ -704,35 +777,38 @@
     "latency_ms": null,
     "detail": {
      "enabled": true,
-     "identifiers_replaced": 2,
+     "identifiers_replaced": 5,
      "tokens": [
       "ACCOUNT_1",
-      "ACCOUNT_2"
+      "ACCOUNT_5",
+      "PERSON_2",
+      "PERSON_3",
+      "PERSON_4"
      ]
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.865519+00:00"
+    "ts": "2026-07-22T15:24:57.549959+00:00"
    },
    {
-    "id": 85,
-    "trace_id": "tr_58e45571dc704674",
-    "event_id": "eval-ambiguous_must_not_guess-0-1784732500.860876",
+    "id": 106,
+    "trace_id": "tr_447bd85b1d084a08",
+    "event_id": "eval-supplied_champion_left-0-1784733897.539341",
     "agent": "renewal_risk_eval",
     "seq": 4,
     "step": "prompt_built",
     "status": "ok",
     "latency_ms": null,
     "detail": {
-     "prompt": "renewal_risk.churn_driver@v2",
-     "fact_count": 26
+     "prompt": "renewal_risk.churn_driver@v5",
+     "fact_count": 16
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.866643+00:00"
+    "ts": "2026-07-22T15:24:57.553712+00:00"
    },
    {
-    "id": 86,
-    "trace_id": "tr_58e45571dc704674",
-    "event_id": "eval-ambiguous_must_not_guess-0-1784732500.860876",
+    "id": 107,
+    "trace_id": "tr_447bd85b1d084a08",
+    "event_id": "eval-supplied_champion_left-0-1784733897.539341",
     "agent": "renewal_risk_eval",
     "seq": 5,
     "step": "llm_analysis",
@@ -742,12 +818,12 @@
      "degraded_reason": "llm_offline_mode"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.867810+00:00"
+    "ts": "2026-07-22T15:24:57.556303+00:00"
    },
    {
-    "id": 87,
-    "trace_id": "tr_58e45571dc704674",
-    "event_id": "eval-ambiguous_must_not_guess-0-1784732500.860876",
+    "id": 108,
+    "trace_id": "tr_447bd85b1d084a08",
+    "event_id": "eval-supplied_champion_left-0-1784733897.539341",
     "agent": "renewal_risk_eval",
     "seq": 6,
     "step": "calibration_applied",
@@ -762,36 +838,543 @@
      "because": "no outcome history for driver 'unknown' - treated as unproven"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.868935+00:00"
+    "ts": "2026-07-22T15:24:57.558322+00:00"
    },
    {
-    "id": 88,
-    "trace_id": "tr_58e45571dc704674",
-    "event_id": "eval-ambiguous_must_not_guess-0-1784732500.860876",
+    "id": 109,
+    "trace_id": "tr_447bd85b1d084a08",
+    "event_id": "eval-supplied_champion_left-0-1784733897.539341",
     "agent": "renewal_risk_eval",
     "seq": 7,
     "step": "run_finished",
     "status": "ok",
-    "latency_ms": 8,
+    "latency_ms": 18,
+    "detail": {
+     "summary": "eval supplied_champion_left #0: False",
+     "total_cost_usd": 0.0
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.559643+00:00"
+   }
+  ]
+ },
+ "/traces/tr_447bd85b1d084a08/why": {
+  "trace_id": "tr_447bd85b1d084a08",
+  "found": true,
+  "agent": "renewal_risk_eval",
+  "event_id": "eval-supplied_champion_left-0-1784733897.539341",
+  "narrative": [
+   "Woken by a 'health_score.dropped' event from eval for account acct_champion_left.",
+   "within per-account and daily limits (rule: within_limits)",
+   "Step 'llm_analysis' completed in degraded mode: llm_offline_mode",
+   "Run finished with status 'ok' in 18ms."
+  ],
+  "decisions": [
+   {
+    "step": "spend_limits",
+    "rule_id": "within_limits",
+    "because": "within per-account and daily limits",
+    "inputs": {
+     "allow_llm": true,
+     "reason": "within per-account and daily limits",
+     "limit_hit": null,
+     "force_human_review": false
+    }
+   }
+  ],
+  "failures": [],
+  "total_cost_usd": 0.0,
+  "step_count": 7,
+  "plain": {
+   "found": true,
+   "headline": "acct_champion_left: possible churn risk, because a possible risk",
+   "lines": [
+    "A message arrived from eval saying this customer's health score has fallen for acct_champion_left."
+   ],
+   "account": "acct_champion_left"
+  }
+ },
+ "/traces/tr_09e7033959f84bc3": {
+  "trace_id": "tr_09e7033959f84bc3",
+  "steps": [
+   {
+    "id": 96,
+    "trace_id": "tr_09e7033959f84bc3",
+    "event_id": "eval-supplied_support_pain-0-1784733897.509915",
+    "agent": "renewal_risk_eval",
+    "seq": 1,
+    "step": "run_started",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "event_type": "health_score.dropped",
+     "source": "eval",
+     "account_id": "acct_support_pain"
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.513201+00:00"
+   },
+   {
+    "id": 97,
+    "trace_id": "tr_09e7033959f84bc3",
+    "event_id": "eval-supplied_support_pain-0-1784733897.509915",
+    "agent": "renewal_risk_eval",
+    "seq": 2,
+    "step": "spend_limits",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "rule_id": "within_limits",
+     "because": "within per-account and daily limits",
+     "decision_inputs": {
+      "allow_llm": true,
+      "reason": "within per-account and daily limits",
+      "limit_hit": null,
+      "force_human_review": false
+     }
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.519842+00:00"
+   },
+   {
+    "id": 98,
+    "trace_id": "tr_09e7033959f84bc3",
+    "event_id": "eval-supplied_support_pain-0-1784733897.509915",
+    "agent": "renewal_risk_eval",
+    "seq": 3,
+    "step": "privacy_minimisation",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "enabled": true,
+     "identifiers_replaced": 5,
+     "tokens": [
+      "ACCOUNT_1",
+      "ACCOUNT_5",
+      "PERSON_2",
+      "PERSON_3",
+      "PERSON_4"
+     ]
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.523983+00:00"
+   },
+   {
+    "id": 99,
+    "trace_id": "tr_09e7033959f84bc3",
+    "event_id": "eval-supplied_support_pain-0-1784733897.509915",
+    "agent": "renewal_risk_eval",
+    "seq": 4,
+    "step": "prompt_built",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "prompt": "renewal_risk.churn_driver@v5",
+     "fact_count": 16
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.525955+00:00"
+   },
+   {
+    "id": 100,
+    "trace_id": "tr_09e7033959f84bc3",
+    "event_id": "eval-supplied_support_pain-0-1784733897.509915",
+    "agent": "renewal_risk_eval",
+    "seq": 5,
+    "step": "llm_analysis",
+    "status": "degraded",
+    "latency_ms": null,
+    "detail": {
+     "degraded_reason": "llm_offline_mode"
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.529340+00:00"
+   },
+   {
+    "id": 101,
+    "trace_id": "tr_09e7033959f84bc3",
+    "event_id": "eval-supplied_support_pain-0-1784733897.509915",
+    "agent": "renewal_risk_eval",
+    "seq": 6,
+    "step": "calibration_applied",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "driver": "unknown",
+     "raw_confidence": 0.25,
+     "calibrated_confidence": 0.25,
+     "multiplier": 1.0,
+     "needs_human_review": false,
+     "because": "no outcome history for driver 'unknown' - treated as unproven"
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.535395+00:00"
+   },
+   {
+    "id": 102,
+    "trace_id": "tr_09e7033959f84bc3",
+    "event_id": "eval-supplied_support_pain-0-1784733897.509915",
+    "agent": "renewal_risk_eval",
+    "seq": 7,
+    "step": "run_finished",
+    "status": "ok",
+    "latency_ms": 25,
+    "detail": {
+     "summary": "eval supplied_support_pain #0: False",
+     "total_cost_usd": 0.0
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.537315+00:00"
+   }
+  ]
+ },
+ "/traces/tr_09e7033959f84bc3/why": {
+  "trace_id": "tr_09e7033959f84bc3",
+  "found": true,
+  "agent": "renewal_risk_eval",
+  "event_id": "eval-supplied_support_pain-0-1784733897.509915",
+  "narrative": [
+   "Woken by a 'health_score.dropped' event from eval for account acct_support_pain.",
+   "within per-account and daily limits (rule: within_limits)",
+   "Step 'llm_analysis' completed in degraded mode: llm_offline_mode",
+   "Run finished with status 'ok' in 25ms."
+  ],
+  "decisions": [
+   {
+    "step": "spend_limits",
+    "rule_id": "within_limits",
+    "because": "within per-account and daily limits",
+    "inputs": {
+     "allow_llm": true,
+     "reason": "within per-account and daily limits",
+     "limit_hit": null,
+     "force_human_review": false
+    }
+   }
+  ],
+  "failures": [],
+  "total_cost_usd": 0.0,
+  "step_count": 7,
+  "plain": {
+   "found": true,
+   "headline": "acct_support_pain: possible churn risk, because a possible risk",
+   "lines": [
+    "A message arrived from eval saying this customer's health score has fallen for acct_support_pain."
+   ],
+   "account": "acct_support_pain"
+  }
+ },
+ "/traces/tr_421598c2d123463b": {
+  "trace_id": "tr_421598c2d123463b",
+  "steps": [
+   {
+    "id": 89,
+    "trace_id": "tr_421598c2d123463b",
+    "event_id": "eval-supplied_usage_dropoff-0-1784733897.492342",
+    "agent": "renewal_risk_eval",
+    "seq": 1,
+    "step": "run_started",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "event_type": "health_score.dropped",
+     "source": "eval",
+     "account_id": "acct_usage_dropoff"
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.495163+00:00"
+   },
+   {
+    "id": 90,
+    "trace_id": "tr_421598c2d123463b",
+    "event_id": "eval-supplied_usage_dropoff-0-1784733897.492342",
+    "agent": "renewal_risk_eval",
+    "seq": 2,
+    "step": "spend_limits",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "rule_id": "within_limits",
+     "because": "within per-account and daily limits",
+     "decision_inputs": {
+      "allow_llm": true,
+      "reason": "within per-account and daily limits",
+      "limit_hit": null,
+      "force_human_review": false
+     }
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.497095+00:00"
+   },
+   {
+    "id": 91,
+    "trace_id": "tr_421598c2d123463b",
+    "event_id": "eval-supplied_usage_dropoff-0-1784733897.492342",
+    "agent": "renewal_risk_eval",
+    "seq": 3,
+    "step": "privacy_minimisation",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "enabled": true,
+     "identifiers_replaced": 5,
+     "tokens": [
+      "ACCOUNT_1",
+      "ACCOUNT_5",
+      "PERSON_2",
+      "PERSON_3",
+      "PERSON_4"
+     ]
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.501067+00:00"
+   },
+   {
+    "id": 92,
+    "trace_id": "tr_421598c2d123463b",
+    "event_id": "eval-supplied_usage_dropoff-0-1784733897.492342",
+    "agent": "renewal_risk_eval",
+    "seq": 4,
+    "step": "prompt_built",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "prompt": "renewal_risk.churn_driver@v5",
+     "fact_count": 16
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.503476+00:00"
+   },
+   {
+    "id": 93,
+    "trace_id": "tr_421598c2d123463b",
+    "event_id": "eval-supplied_usage_dropoff-0-1784733897.492342",
+    "agent": "renewal_risk_eval",
+    "seq": 5,
+    "step": "llm_analysis",
+    "status": "degraded",
+    "latency_ms": null,
+    "detail": {
+     "degraded_reason": "llm_offline_mode"
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.505202+00:00"
+   },
+   {
+    "id": 94,
+    "trace_id": "tr_421598c2d123463b",
+    "event_id": "eval-supplied_usage_dropoff-0-1784733897.492342",
+    "agent": "renewal_risk_eval",
+    "seq": 6,
+    "step": "calibration_applied",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "driver": "unknown",
+     "raw_confidence": 0.25,
+     "calibrated_confidence": 0.25,
+     "multiplier": 1.0,
+     "needs_human_review": false,
+     "because": "no outcome history for driver 'unknown' - treated as unproven"
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.507282+00:00"
+   },
+   {
+    "id": 95,
+    "trace_id": "tr_421598c2d123463b",
+    "event_id": "eval-supplied_usage_dropoff-0-1784733897.492342",
+    "agent": "renewal_risk_eval",
+    "seq": 7,
+    "step": "run_finished",
+    "status": "ok",
+    "latency_ms": 15,
+    "detail": {
+     "summary": "eval supplied_usage_dropoff #0: False",
+     "total_cost_usd": 0.0
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.508754+00:00"
+   }
+  ]
+ },
+ "/traces/tr_421598c2d123463b/why": {
+  "trace_id": "tr_421598c2d123463b",
+  "found": true,
+  "agent": "renewal_risk_eval",
+  "event_id": "eval-supplied_usage_dropoff-0-1784733897.492342",
+  "narrative": [
+   "Woken by a 'health_score.dropped' event from eval for account acct_usage_dropoff.",
+   "within per-account and daily limits (rule: within_limits)",
+   "Step 'llm_analysis' completed in degraded mode: llm_offline_mode",
+   "Run finished with status 'ok' in 15ms."
+  ],
+  "decisions": [
+   {
+    "step": "spend_limits",
+    "rule_id": "within_limits",
+    "because": "within per-account and daily limits",
+    "inputs": {
+     "allow_llm": true,
+     "reason": "within per-account and daily limits",
+     "limit_hit": null,
+     "force_human_review": false
+    }
+   }
+  ],
+  "failures": [],
+  "total_cost_usd": 0.0,
+  "step_count": 7,
+  "plain": {
+   "found": true,
+   "headline": "acct_usage_dropoff: possible churn risk, because a possible risk",
+   "lines": [
+    "A message arrived from eval saying this customer's health score has fallen for acct_usage_dropoff."
+   ],
+   "account": "acct_usage_dropoff"
+  }
+ },
+ "/traces/tr_a4d9b305cfb645ee": {
+  "trace_id": "tr_a4d9b305cfb645ee",
+  "steps": [
+   {
+    "id": 82,
+    "trace_id": "tr_a4d9b305cfb645ee",
+    "event_id": "eval-ambiguous_must_not_guess-0-1784733897.467224",
+    "agent": "renewal_risk_eval",
+    "seq": 1,
+    "step": "run_started",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "event_type": "health_score.dropped",
+     "source": "eval",
+     "account_id": "EVAL-5"
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.474909+00:00"
+   },
+   {
+    "id": 83,
+    "trace_id": "tr_a4d9b305cfb645ee",
+    "event_id": "eval-ambiguous_must_not_guess-0-1784733897.467224",
+    "agent": "renewal_risk_eval",
+    "seq": 2,
+    "step": "spend_limits",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "rule_id": "within_limits",
+     "because": "within per-account and daily limits",
+     "decision_inputs": {
+      "allow_llm": true,
+      "reason": "within per-account and daily limits",
+      "limit_hit": null,
+      "force_human_review": false
+     }
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.477825+00:00"
+   },
+   {
+    "id": 84,
+    "trace_id": "tr_a4d9b305cfb645ee",
+    "event_id": "eval-ambiguous_must_not_guess-0-1784733897.467224",
+    "agent": "renewal_risk_eval",
+    "seq": 3,
+    "step": "privacy_minimisation",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "enabled": true,
+     "identifiers_replaced": 2,
+     "tokens": [
+      "ACCOUNT_1",
+      "ACCOUNT_2"
+     ]
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.479324+00:00"
+   },
+   {
+    "id": 85,
+    "trace_id": "tr_a4d9b305cfb645ee",
+    "event_id": "eval-ambiguous_must_not_guess-0-1784733897.467224",
+    "agent": "renewal_risk_eval",
+    "seq": 4,
+    "step": "prompt_built",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "prompt": "renewal_risk.churn_driver@v5",
+     "fact_count": 31
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.481116+00:00"
+   },
+   {
+    "id": 86,
+    "trace_id": "tr_a4d9b305cfb645ee",
+    "event_id": "eval-ambiguous_must_not_guess-0-1784733897.467224",
+    "agent": "renewal_risk_eval",
+    "seq": 5,
+    "step": "llm_analysis",
+    "status": "degraded",
+    "latency_ms": null,
+    "detail": {
+     "degraded_reason": "llm_offline_mode"
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.486705+00:00"
+   },
+   {
+    "id": 87,
+    "trace_id": "tr_a4d9b305cfb645ee",
+    "event_id": "eval-ambiguous_must_not_guess-0-1784733897.467224",
+    "agent": "renewal_risk_eval",
+    "seq": 6,
+    "step": "calibration_applied",
+    "status": "ok",
+    "latency_ms": null,
+    "detail": {
+     "driver": "unknown",
+     "raw_confidence": 0.25,
+     "calibrated_confidence": 0.25,
+     "multiplier": 1.0,
+     "needs_human_review": false,
+     "because": "no outcome history for driver 'unknown' - treated as unproven"
+    },
+    "error": null,
+    "ts": "2026-07-22T15:24:57.488521+00:00"
+   },
+   {
+    "id": 88,
+    "trace_id": "tr_a4d9b305cfb645ee",
+    "event_id": "eval-ambiguous_must_not_guess-0-1784733897.467224",
+    "agent": "renewal_risk_eval",
+    "seq": 7,
+    "step": "run_finished",
+    "status": "ok",
+    "latency_ms": 19,
     "detail": {
      "summary": "eval ambiguous_must_not_guess #0: True",
      "total_cost_usd": 0.0
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.870012+00:00"
+    "ts": "2026-07-22T15:24:57.490775+00:00"
    }
   ]
  },
- "/traces/tr_58e45571dc704674/why": {
-  "trace_id": "tr_58e45571dc704674",
+ "/traces/tr_a4d9b305cfb645ee/why": {
+  "trace_id": "tr_a4d9b305cfb645ee",
   "found": true,
   "agent": "renewal_risk_eval",
-  "event_id": "eval-ambiguous_must_not_guess-0-1784732500.860876",
+  "event_id": "eval-ambiguous_must_not_guess-0-1784733897.467224",
   "narrative": [
    "Woken by a 'health_score.dropped' event from eval for account EVAL-5.",
    "within per-account and daily limits (rule: within_limits)",
    "Step 'llm_analysis' completed in degraded mode: llm_offline_mode",
-   "Run finished with status 'ok' in 8ms."
+   "Run finished with status 'ok' in 19ms."
   ],
   "decisions": [
    {
@@ -818,13 +1401,13 @@
    "account": "EVAL-5"
   }
  },
- "/traces/tr_d2a7505444214d5b": {
-  "trace_id": "tr_d2a7505444214d5b",
+ "/traces/tr_8da9ad0240ce4cbc": {
+  "trace_id": "tr_8da9ad0240ce4cbc",
   "steps": [
    {
     "id": 75,
-    "trace_id": "tr_d2a7505444214d5b",
-    "event_id": "eval-integration_regression-0-1784732500.849296",
+    "trace_id": "tr_8da9ad0240ce4cbc",
+    "event_id": "eval-integration_regression-0-1784733897.443532",
     "agent": "renewal_risk_eval",
     "seq": 1,
     "step": "run_started",
@@ -836,12 +1419,12 @@
      "account_id": "EVAL-4"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.851921+00:00"
+    "ts": "2026-07-22T15:24:57.446998+00:00"
    },
    {
     "id": 76,
-    "trace_id": "tr_d2a7505444214d5b",
-    "event_id": "eval-integration_regression-0-1784732500.849296",
+    "trace_id": "tr_8da9ad0240ce4cbc",
+    "event_id": "eval-integration_regression-0-1784733897.443532",
     "agent": "renewal_risk_eval",
     "seq": 2,
     "step": "spend_limits",
@@ -858,12 +1441,12 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.853175+00:00"
+    "ts": "2026-07-22T15:24:57.452981+00:00"
    },
    {
     "id": 77,
-    "trace_id": "tr_d2a7505444214d5b",
-    "event_id": "eval-integration_regression-0-1784732500.849296",
+    "trace_id": "tr_8da9ad0240ce4cbc",
+    "event_id": "eval-integration_regression-0-1784733897.443532",
     "agent": "renewal_risk_eval",
     "seq": 3,
     "step": "privacy_minimisation",
@@ -878,28 +1461,28 @@
      ]
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.854585+00:00"
+    "ts": "2026-07-22T15:24:57.455312+00:00"
    },
    {
     "id": 78,
-    "trace_id": "tr_d2a7505444214d5b",
-    "event_id": "eval-integration_regression-0-1784732500.849296",
+    "trace_id": "tr_8da9ad0240ce4cbc",
+    "event_id": "eval-integration_regression-0-1784733897.443532",
     "agent": "renewal_risk_eval",
     "seq": 4,
     "step": "prompt_built",
     "status": "ok",
     "latency_ms": null,
     "detail": {
-     "prompt": "renewal_risk.churn_driver@v2",
-     "fact_count": 26
+     "prompt": "renewal_risk.churn_driver@v5",
+     "fact_count": 31
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.855869+00:00"
+    "ts": "2026-07-22T15:24:57.458071+00:00"
    },
    {
     "id": 79,
-    "trace_id": "tr_d2a7505444214d5b",
-    "event_id": "eval-integration_regression-0-1784732500.849296",
+    "trace_id": "tr_8da9ad0240ce4cbc",
+    "event_id": "eval-integration_regression-0-1784733897.443532",
     "agent": "renewal_risk_eval",
     "seq": 5,
     "step": "llm_analysis",
@@ -909,12 +1492,12 @@
      "degraded_reason": "llm_offline_mode"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.856916+00:00"
+    "ts": "2026-07-22T15:24:57.460311+00:00"
    },
    {
     "id": 80,
-    "trace_id": "tr_d2a7505444214d5b",
-    "event_id": "eval-integration_regression-0-1784732500.849296",
+    "trace_id": "tr_8da9ad0240ce4cbc",
+    "event_id": "eval-integration_regression-0-1784733897.443532",
     "agent": "renewal_risk_eval",
     "seq": 6,
     "step": "calibration_applied",
@@ -929,36 +1512,36 @@
      "because": "no outcome history for driver 'data_integration_regression' - treated as unproven"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.858144+00:00"
+    "ts": "2026-07-22T15:24:57.462384+00:00"
    },
    {
     "id": 81,
-    "trace_id": "tr_d2a7505444214d5b",
-    "event_id": "eval-integration_regression-0-1784732500.849296",
+    "trace_id": "tr_8da9ad0240ce4cbc",
+    "event_id": "eval-integration_regression-0-1784733897.443532",
     "agent": "renewal_risk_eval",
     "seq": 7,
     "step": "run_finished",
     "status": "ok",
-    "latency_ms": 8,
+    "latency_ms": 20,
     "detail": {
      "summary": "eval integration_regression #0: True",
      "total_cost_usd": 0.0
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.859678+00:00"
+    "ts": "2026-07-22T15:24:57.465368+00:00"
    }
   ]
  },
- "/traces/tr_d2a7505444214d5b/why": {
-  "trace_id": "tr_d2a7505444214d5b",
+ "/traces/tr_8da9ad0240ce4cbc/why": {
+  "trace_id": "tr_8da9ad0240ce4cbc",
   "found": true,
   "agent": "renewal_risk_eval",
-  "event_id": "eval-integration_regression-0-1784732500.849296",
+  "event_id": "eval-integration_regression-0-1784733897.443532",
   "narrative": [
    "Woken by a 'health_score.dropped' event from eval for account EVAL-4.",
    "within per-account and daily limits (rule: within_limits)",
    "Step 'llm_analysis' completed in degraded mode: llm_offline_mode",
-   "Run finished with status 'ok' in 8ms."
+   "Run finished with status 'ok' in 20ms."
   ],
   "decisions": [
    {
@@ -985,13 +1568,13 @@
    "account": "EVAL-4"
   }
  },
- "/traces/tr_c1ad72bd5dbf4555": {
-  "trace_id": "tr_c1ad72bd5dbf4555",
+ "/traces/tr_5660ec0cbc724207": {
+  "trace_id": "tr_5660ec0cbc724207",
   "steps": [
    {
     "id": 68,
-    "trace_id": "tr_c1ad72bd5dbf4555",
-    "event_id": "eval-champion_loss_clear-0-1784732500.838369",
+    "trace_id": "tr_5660ec0cbc724207",
+    "event_id": "eval-champion_loss_clear-0-1784733897.427835",
     "agent": "renewal_risk_eval",
     "seq": 1,
     "step": "run_started",
@@ -1003,12 +1586,12 @@
      "account_id": "EVAL-3"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.840442+00:00"
+    "ts": "2026-07-22T15:24:57.430510+00:00"
    },
    {
     "id": 69,
-    "trace_id": "tr_c1ad72bd5dbf4555",
-    "event_id": "eval-champion_loss_clear-0-1784732500.838369",
+    "trace_id": "tr_5660ec0cbc724207",
+    "event_id": "eval-champion_loss_clear-0-1784733897.427835",
     "agent": "renewal_risk_eval",
     "seq": 2,
     "step": "spend_limits",
@@ -1025,12 +1608,12 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.841831+00:00"
+    "ts": "2026-07-22T15:24:57.432493+00:00"
    },
    {
     "id": 70,
-    "trace_id": "tr_c1ad72bd5dbf4555",
-    "event_id": "eval-champion_loss_clear-0-1784732500.838369",
+    "trace_id": "tr_5660ec0cbc724207",
+    "event_id": "eval-champion_loss_clear-0-1784733897.427835",
     "agent": "renewal_risk_eval",
     "seq": 3,
     "step": "privacy_minimisation",
@@ -1045,28 +1628,28 @@
      ]
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.843437+00:00"
+    "ts": "2026-07-22T15:24:57.434570+00:00"
    },
    {
     "id": 71,
-    "trace_id": "tr_c1ad72bd5dbf4555",
-    "event_id": "eval-champion_loss_clear-0-1784732500.838369",
+    "trace_id": "tr_5660ec0cbc724207",
+    "event_id": "eval-champion_loss_clear-0-1784733897.427835",
     "agent": "renewal_risk_eval",
     "seq": 4,
     "step": "prompt_built",
     "status": "ok",
     "latency_ms": null,
     "detail": {
-     "prompt": "renewal_risk.churn_driver@v2",
-     "fact_count": 26
+     "prompt": "renewal_risk.churn_driver@v5",
+     "fact_count": 31
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.844689+00:00"
+    "ts": "2026-07-22T15:24:57.437293+00:00"
    },
    {
     "id": 72,
-    "trace_id": "tr_c1ad72bd5dbf4555",
-    "event_id": "eval-champion_loss_clear-0-1784732500.838369",
+    "trace_id": "tr_5660ec0cbc724207",
+    "event_id": "eval-champion_loss_clear-0-1784733897.427835",
     "agent": "renewal_risk_eval",
     "seq": 5,
     "step": "llm_analysis",
@@ -1076,12 +1659,12 @@
      "degraded_reason": "llm_offline_mode"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.845856+00:00"
+    "ts": "2026-07-22T15:24:57.438894+00:00"
    },
    {
     "id": 73,
-    "trace_id": "tr_c1ad72bd5dbf4555",
-    "event_id": "eval-champion_loss_clear-0-1784732500.838369",
+    "trace_id": "tr_5660ec0cbc724207",
+    "event_id": "eval-champion_loss_clear-0-1784733897.427835",
     "agent": "renewal_risk_eval",
     "seq": 6,
     "step": "calibration_applied",
@@ -1096,36 +1679,36 @@
      "because": "no outcome history for driver 'champion_loss' - treated as unproven"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.847019+00:00"
+    "ts": "2026-07-22T15:24:57.440965+00:00"
    },
    {
     "id": 74,
-    "trace_id": "tr_c1ad72bd5dbf4555",
-    "event_id": "eval-champion_loss_clear-0-1784732500.838369",
+    "trace_id": "tr_5660ec0cbc724207",
+    "event_id": "eval-champion_loss_clear-0-1784733897.427835",
     "agent": "renewal_risk_eval",
     "seq": 7,
     "step": "run_finished",
     "status": "ok",
-    "latency_ms": 8,
+    "latency_ms": 13,
     "detail": {
      "summary": "eval champion_loss_clear #0: True",
      "total_cost_usd": 0.0
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.848169+00:00"
+    "ts": "2026-07-22T15:24:57.442359+00:00"
    }
   ]
  },
- "/traces/tr_c1ad72bd5dbf4555/why": {
-  "trace_id": "tr_c1ad72bd5dbf4555",
+ "/traces/tr_5660ec0cbc724207/why": {
+  "trace_id": "tr_5660ec0cbc724207",
   "found": true,
   "agent": "renewal_risk_eval",
-  "event_id": "eval-champion_loss_clear-0-1784732500.838369",
+  "event_id": "eval-champion_loss_clear-0-1784733897.427835",
   "narrative": [
    "Woken by a 'health_score.dropped' event from eval for account EVAL-3.",
    "within per-account and daily limits (rule: within_limits)",
    "Step 'llm_analysis' completed in degraded mode: llm_offline_mode",
-   "Run finished with status 'ok' in 8ms."
+   "Run finished with status 'ok' in 13ms."
   ],
   "decisions": [
    {
@@ -1152,13 +1735,13 @@
    "account": "EVAL-3"
   }
  },
- "/traces/tr_ab30c42d95754df5": {
-  "trace_id": "tr_ab30c42d95754df5",
+ "/traces/tr_4dc976d43d4445f0": {
+  "trace_id": "tr_4dc976d43d4445f0",
   "steps": [
    {
     "id": 61,
-    "trace_id": "tr_ab30c42d95754df5",
-    "event_id": "eval-support_burden_clear-0-1784732500.827942",
+    "trace_id": "tr_4dc976d43d4445f0",
+    "event_id": "eval-support_burden_clear-0-1784733897.408291",
     "agent": "renewal_risk_eval",
     "seq": 1,
     "step": "run_started",
@@ -1170,12 +1753,12 @@
      "account_id": "EVAL-2"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.830060+00:00"
+    "ts": "2026-07-22T15:24:57.411018+00:00"
    },
    {
     "id": 62,
-    "trace_id": "tr_ab30c42d95754df5",
-    "event_id": "eval-support_burden_clear-0-1784732500.827942",
+    "trace_id": "tr_4dc976d43d4445f0",
+    "event_id": "eval-support_burden_clear-0-1784733897.408291",
     "agent": "renewal_risk_eval",
     "seq": 2,
     "step": "spend_limits",
@@ -1192,12 +1775,12 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.831303+00:00"
+    "ts": "2026-07-22T15:24:57.413311+00:00"
    },
    {
     "id": 63,
-    "trace_id": "tr_ab30c42d95754df5",
-    "event_id": "eval-support_burden_clear-0-1784732500.827942",
+    "trace_id": "tr_4dc976d43d4445f0",
+    "event_id": "eval-support_burden_clear-0-1784733897.408291",
     "agent": "renewal_risk_eval",
     "seq": 3,
     "step": "privacy_minimisation",
@@ -1212,28 +1795,28 @@
      ]
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.832410+00:00"
+    "ts": "2026-07-22T15:24:57.417404+00:00"
    },
    {
     "id": 64,
-    "trace_id": "tr_ab30c42d95754df5",
-    "event_id": "eval-support_burden_clear-0-1784732500.827942",
+    "trace_id": "tr_4dc976d43d4445f0",
+    "event_id": "eval-support_burden_clear-0-1784733897.408291",
     "agent": "renewal_risk_eval",
     "seq": 4,
     "step": "prompt_built",
     "status": "ok",
     "latency_ms": null,
     "detail": {
-     "prompt": "renewal_risk.churn_driver@v2",
-     "fact_count": 26
+     "prompt": "renewal_risk.churn_driver@v5",
+     "fact_count": 31
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.833573+00:00"
+    "ts": "2026-07-22T15:24:57.419514+00:00"
    },
    {
     "id": 65,
-    "trace_id": "tr_ab30c42d95754df5",
-    "event_id": "eval-support_burden_clear-0-1784732500.827942",
+    "trace_id": "tr_4dc976d43d4445f0",
+    "event_id": "eval-support_burden_clear-0-1784733897.408291",
     "agent": "renewal_risk_eval",
     "seq": 5,
     "step": "llm_analysis",
@@ -1243,12 +1826,12 @@
      "degraded_reason": "llm_offline_mode"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.835012+00:00"
+    "ts": "2026-07-22T15:24:57.421414+00:00"
    },
    {
     "id": 66,
-    "trace_id": "tr_ab30c42d95754df5",
-    "event_id": "eval-support_burden_clear-0-1784732500.827942",
+    "trace_id": "tr_4dc976d43d4445f0",
+    "event_id": "eval-support_burden_clear-0-1784733897.408291",
     "agent": "renewal_risk_eval",
     "seq": 6,
     "step": "calibration_applied",
@@ -1263,36 +1846,36 @@
      "because": "no outcome history for driver 'support_burden' - treated as unproven"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.836209+00:00"
+    "ts": "2026-07-22T15:24:57.423492+00:00"
    },
    {
     "id": 67,
-    "trace_id": "tr_ab30c42d95754df5",
-    "event_id": "eval-support_burden_clear-0-1784732500.827942",
+    "trace_id": "tr_4dc976d43d4445f0",
+    "event_id": "eval-support_burden_clear-0-1784733897.408291",
     "agent": "renewal_risk_eval",
     "seq": 7,
     "step": "run_finished",
     "status": "ok",
-    "latency_ms": 8,
+    "latency_ms": 16,
     "detail": {
      "summary": "eval support_burden_clear #0: True",
      "total_cost_usd": 0.0
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.837269+00:00"
+    "ts": "2026-07-22T15:24:57.425713+00:00"
    }
   ]
  },
- "/traces/tr_ab30c42d95754df5/why": {
-  "trace_id": "tr_ab30c42d95754df5",
+ "/traces/tr_4dc976d43d4445f0/why": {
+  "trace_id": "tr_4dc976d43d4445f0",
   "found": true,
   "agent": "renewal_risk_eval",
-  "event_id": "eval-support_burden_clear-0-1784732500.827942",
+  "event_id": "eval-support_burden_clear-0-1784733897.408291",
   "narrative": [
    "Woken by a 'health_score.dropped' event from eval for account EVAL-2.",
    "within per-account and daily limits (rule: within_limits)",
    "Step 'llm_analysis' completed in degraded mode: llm_offline_mode",
-   "Run finished with status 'ok' in 8ms."
+   "Run finished with status 'ok' in 16ms."
   ],
   "decisions": [
    {
@@ -1319,13 +1902,13 @@
    "account": "EVAL-2"
   }
  },
- "/traces/tr_8fecbdb263164eea": {
-  "trace_id": "tr_8fecbdb263164eea",
+ "/traces/tr_64f669299e334092": {
+  "trace_id": "tr_64f669299e334092",
   "steps": [
    {
     "id": 54,
-    "trace_id": "tr_8fecbdb263164eea",
-    "event_id": "eval-adoption_decline_clear-0-1784732500.816852",
+    "trace_id": "tr_64f669299e334092",
+    "event_id": "eval-adoption_decline_clear-0-1784733897.389192",
     "agent": "renewal_risk_eval",
     "seq": 1,
     "step": "run_started",
@@ -1337,12 +1920,12 @@
      "account_id": "EVAL-1"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.819222+00:00"
+    "ts": "2026-07-22T15:24:57.393048+00:00"
    },
    {
     "id": 55,
-    "trace_id": "tr_8fecbdb263164eea",
-    "event_id": "eval-adoption_decline_clear-0-1784732500.816852",
+    "trace_id": "tr_64f669299e334092",
+    "event_id": "eval-adoption_decline_clear-0-1784733897.389192",
     "agent": "renewal_risk_eval",
     "seq": 2,
     "step": "spend_limits",
@@ -1359,12 +1942,12 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.820698+00:00"
+    "ts": "2026-07-22T15:24:57.394651+00:00"
    },
    {
     "id": 56,
-    "trace_id": "tr_8fecbdb263164eea",
-    "event_id": "eval-adoption_decline_clear-0-1784732500.816852",
+    "trace_id": "tr_64f669299e334092",
+    "event_id": "eval-adoption_decline_clear-0-1784733897.389192",
     "agent": "renewal_risk_eval",
     "seq": 3,
     "step": "privacy_minimisation",
@@ -1379,28 +1962,28 @@
      ]
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.821829+00:00"
+    "ts": "2026-07-22T15:24:57.396060+00:00"
    },
    {
     "id": 57,
-    "trace_id": "tr_8fecbdb263164eea",
-    "event_id": "eval-adoption_decline_clear-0-1784732500.816852",
+    "trace_id": "tr_64f669299e334092",
+    "event_id": "eval-adoption_decline_clear-0-1784733897.389192",
     "agent": "renewal_risk_eval",
     "seq": 4,
     "step": "prompt_built",
     "status": "ok",
     "latency_ms": null,
     "detail": {
-     "prompt": "renewal_risk.churn_driver@v2",
-     "fact_count": 26
+     "prompt": "renewal_risk.churn_driver@v5",
+     "fact_count": 31
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.822969+00:00"
+    "ts": "2026-07-22T15:24:57.398321+00:00"
    },
    {
     "id": 58,
-    "trace_id": "tr_8fecbdb263164eea",
-    "event_id": "eval-adoption_decline_clear-0-1784732500.816852",
+    "trace_id": "tr_64f669299e334092",
+    "event_id": "eval-adoption_decline_clear-0-1784733897.389192",
     "agent": "renewal_risk_eval",
     "seq": 5,
     "step": "llm_analysis",
@@ -1410,12 +1993,12 @@
      "degraded_reason": "llm_offline_mode"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.824155+00:00"
+    "ts": "2026-07-22T15:24:57.402904+00:00"
    },
    {
     "id": 59,
-    "trace_id": "tr_8fecbdb263164eea",
-    "event_id": "eval-adoption_decline_clear-0-1784732500.816852",
+    "trace_id": "tr_64f669299e334092",
+    "event_id": "eval-adoption_decline_clear-0-1784733897.389192",
     "agent": "renewal_risk_eval",
     "seq": 6,
     "step": "calibration_applied",
@@ -1430,36 +2013,36 @@
      "because": "no outcome history for driver 'adoption_decline' - treated as unproven"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.825423+00:00"
+    "ts": "2026-07-22T15:24:57.404930+00:00"
    },
    {
     "id": 60,
-    "trace_id": "tr_8fecbdb263164eea",
-    "event_id": "eval-adoption_decline_clear-0-1784732500.816852",
+    "trace_id": "tr_64f669299e334092",
+    "event_id": "eval-adoption_decline_clear-0-1784733897.389192",
     "agent": "renewal_risk_eval",
     "seq": 7,
     "step": "run_finished",
     "status": "ok",
-    "latency_ms": 8,
+    "latency_ms": 15,
     "detail": {
      "summary": "eval adoption_decline_clear #0: True",
      "total_cost_usd": 0.0
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.826698+00:00"
+    "ts": "2026-07-22T15:24:57.406790+00:00"
    }
   ]
  },
- "/traces/tr_8fecbdb263164eea/why": {
-  "trace_id": "tr_8fecbdb263164eea",
+ "/traces/tr_64f669299e334092/why": {
+  "trace_id": "tr_64f669299e334092",
   "found": true,
   "agent": "renewal_risk_eval",
-  "event_id": "eval-adoption_decline_clear-0-1784732500.816852",
+  "event_id": "eval-adoption_decline_clear-0-1784733897.389192",
   "narrative": [
    "Woken by a 'health_score.dropped' event from eval for account EVAL-1.",
    "within per-account and daily limits (rule: within_limits)",
    "Step 'llm_analysis' completed in degraded mode: llm_offline_mode",
-   "Run finished with status 'ok' in 8ms."
+   "Run finished with status 'ok' in 15ms."
   ],
   "decisions": [
    {
@@ -1486,12 +2069,12 @@
    "account": "EVAL-1"
   }
  },
- "/traces/tr_a40cb84a8c4d48fc": {
-  "trace_id": "tr_a40cb84a8c4d48fc",
+ "/traces/tr_e89f31ba6b5f4347": {
+  "trace_id": "tr_e89f31ba6b5f4347",
   "steps": [
    {
     "id": 47,
-    "trace_id": "tr_a40cb84a8c4d48fc",
+    "trace_id": "tr_e89f31ba6b5f4347",
     "event_id": "zd-evt-2026-07-21-0044",
     "agent": "support_escalation",
     "seq": 1,
@@ -1504,11 +2087,11 @@
      "account_id": "ACC-2201"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.795472+00:00"
+    "ts": "2026-07-22T15:24:57.344052+00:00"
    },
    {
     "id": 48,
-    "trace_id": "tr_a40cb84a8c4d48fc",
+    "trace_id": "tr_e89f31ba6b5f4347",
     "event_id": "zd-evt-2026-07-21-0044",
     "agent": "support_escalation",
     "seq": 2,
@@ -1523,11 +2106,11 @@
      "response_summary": {}
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.797331+00:00"
+    "ts": "2026-07-22T15:24:57.346532+00:00"
    },
    {
     "id": 49,
-    "trace_id": "tr_a40cb84a8c4d48fc",
+    "trace_id": "tr_e89f31ba6b5f4347",
     "event_id": "zd-evt-2026-07-21-0044",
     "agent": "support_escalation",
     "seq": 3,
@@ -1539,11 +2122,11 @@
      "p1_tickets_30d": 4
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.798509+00:00"
+    "ts": "2026-07-22T15:24:57.348058+00:00"
    },
    {
     "id": 50,
-    "trace_id": "tr_a40cb84a8c4d48fc",
+    "trace_id": "tr_e89f31ba6b5f4347",
     "event_id": "zd-evt-2026-07-21-0044",
     "agent": "support_escalation",
     "seq": 4,
@@ -1559,11 +2142,11 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.799544+00:00"
+    "ts": "2026-07-22T15:24:57.356195+00:00"
    },
    {
     "id": 51,
-    "trace_id": "tr_a40cb84a8c4d48fc",
+    "trace_id": "tr_e89f31ba6b5f4347",
     "event_id": "zd-evt-2026-07-21-0044",
     "agent": "support_escalation",
     "seq": 5,
@@ -1574,7 +2157,7 @@
      "attempt": 1,
      "request": {
       "channel": "#support-escalations",
-      "text": "*Support escalation* - account ACC-2201\n4 P1 tickets in the last 30 days, CSAT 2.4, 9 open tickets.\n_Trace: tr_a40cb84a8c4d48fc_"
+      "text": "*Support escalation* - account ACC-2201\n4 P1 tickets in the last 30 days, CSAT 2.4, 9 open tickets.\n_Trace: tr_e89f31ba6b5f4347_"
      },
      "response_summary": {
       "channel": "#support-escalations",
@@ -1582,11 +2165,11 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.800780+00:00"
+    "ts": "2026-07-22T15:24:57.358789+00:00"
    },
    {
     "id": 52,
-    "trace_id": "tr_a40cb84a8c4d48fc",
+    "trace_id": "tr_e89f31ba6b5f4347",
     "event_id": "zd-evt-2026-07-21-0044",
     "agent": "support_escalation",
     "seq": 6,
@@ -1597,35 +2180,35 @@
      "channel": "#support-escalations"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.801919+00:00"
+    "ts": "2026-07-22T15:24:57.360434+00:00"
    },
    {
     "id": 53,
-    "trace_id": "tr_a40cb84a8c4d48fc",
+    "trace_id": "tr_e89f31ba6b5f4347",
     "event_id": "zd-evt-2026-07-21-0044",
     "agent": "support_escalation",
     "seq": 7,
     "step": "run_finished",
     "status": "ok",
-    "latency_ms": 8,
+    "latency_ms": 19,
     "detail": {
      "summary": "escalated ACC-2201: 4 P1 tickets",
      "total_cost_usd": 0.0
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.803080+00:00"
+    "ts": "2026-07-22T15:24:57.362056+00:00"
    }
   ]
  },
- "/traces/tr_a40cb84a8c4d48fc/why": {
-  "trace_id": "tr_a40cb84a8c4d48fc",
+ "/traces/tr_e89f31ba6b5f4347/why": {
+  "trace_id": "tr_e89f31ba6b5f4347",
   "found": true,
   "agent": "support_escalation",
   "event_id": "zd-evt-2026-07-21-0044",
   "narrative": [
    "Woken by a 'support.ticket_spike' event from zendesk for account ACC-2201.",
    "4 P1 tickets in 30 days (threshold 2) with CSAT 2.4 (rule: escalate)",
-   "Run finished with status 'ok' in 8ms."
+   "Run finished with status 'ok' in 19ms."
   ],
   "decisions": [
    {
@@ -1650,12 +2233,12 @@
    "account": "ACC-2201"
   }
  },
- "/traces/tr_fd6bbd6bf4204e19": {
-  "trace_id": "tr_fd6bbd6bf4204e19",
+ "/traces/tr_79fd1fe1b1934922": {
+  "trace_id": "tr_79fd1fe1b1934922",
   "steps": [
    {
     "id": 24,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 1,
@@ -1668,17 +2251,17 @@
      "account_id": "ACC-9033"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.685405+00:00"
+    "ts": "2026-07-22T15:24:57.244310+00:00"
    },
    {
     "id": 25,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 2,
     "step": "salesforce.get_account",
     "status": "ok",
-    "latency_ms": 39,
+    "latency_ms": 19,
     "detail": {
      "attempt": 1,
      "request": {
@@ -1689,11 +2272,11 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.726316+00:00"
+    "ts": "2026-07-22T15:24:57.265708+00:00"
    },
    {
     "id": 26,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 3,
@@ -1708,11 +2291,11 @@
      "response_summary": {}
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.727793+00:00"
+    "ts": "2026-07-22T15:24:57.268015+00:00"
    },
    {
     "id": 27,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 4,
@@ -1727,28 +2310,28 @@
      "response_summary": {}
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.729124+00:00"
+    "ts": "2026-07-22T15:24:57.270423+00:00"
    },
    {
     "id": 28,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 5,
     "step": "fetch_context",
     "status": "ok",
-    "latency_ms": 43,
+    "latency_ms": 28,
     "detail": {
      "account_name": "Halcyon Analytics",
      "arr_usd": 121000,
-     "fact_count": 33
+     "fact_count": 38
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.730336+00:00"
+    "ts": "2026-07-22T15:24:57.274651+00:00"
    },
    {
     "id": 29,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 6,
@@ -1765,11 +2348,11 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.731579+00:00"
+    "ts": "2026-07-22T15:24:57.276805+00:00"
    },
    {
     "id": 30,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 7,
@@ -1787,11 +2370,11 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.732845+00:00"
+    "ts": "2026-07-22T15:24:57.279197+00:00"
    },
    {
     "id": 31,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 8,
@@ -1810,11 +2393,11 @@
      ]
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.733953+00:00"
+    "ts": "2026-07-22T15:24:57.280921+00:00"
    },
    {
     "id": 32,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 9,
@@ -1822,15 +2405,15 @@
     "status": "ok",
     "latency_ms": null,
     "detail": {
-     "prompt": "renewal_risk.churn_driver@v2",
-     "fact_count": 33
+     "prompt": "renewal_risk.churn_driver@v5",
+     "fact_count": 38
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.735134+00:00"
+    "ts": "2026-07-22T15:24:57.285859+00:00"
    },
    {
     "id": 33,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 10,
@@ -1841,11 +2424,11 @@
      "degraded_reason": "llm_offline_mode"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.736156+00:00"
+    "ts": "2026-07-22T15:24:57.287639+00:00"
    },
    {
     "id": 34,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 11,
@@ -1861,32 +2444,32 @@
      "because": "no outcome history for driver 'champion_loss' - treated as unproven"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.737366+00:00"
+    "ts": "2026-07-22T15:24:57.290847+00:00"
    },
    {
     "id": 35,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 12,
     "step": "analyse",
     "status": "degraded",
-    "latency_ms": 5,
+    "latency_ms": 13,
     "detail": {
      "degraded_reason": "llm_offline_mode",
      "driver": "champion_loss",
      "method": "deterministic_fallback",
      "model": null,
-     "prompt_version": "v2",
+     "prompt_version": "v5",
      "confidence": 0.55,
      "cost_usd": 0.0
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.738553+00:00"
+    "ts": "2026-07-22T15:24:57.292790+00:00"
    },
    {
     "id": 36,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 13,
@@ -1904,11 +2487,11 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.739802+00:00"
+    "ts": "2026-07-22T15:24:57.294432+00:00"
    },
    {
     "id": 37,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 14,
@@ -1926,17 +2509,17 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.740812+00:00"
+    "ts": "2026-07-22T15:24:57.295709+00:00"
    },
    {
     "id": 38,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 15,
     "step": "salesforce.create_task",
     "status": "ok",
-    "latency_ms": 39,
+    "latency_ms": 22,
     "detail": {
      "attempt": 1,
      "request": {
@@ -1945,72 +2528,60 @@
       "description": "Churn risk driver: champion loss. Executive sponsor changed and the last QBR was 195 days ago. Health score 52.",
       "priority": "High",
       "owner": "Ines Duarte",
-      "trace_id": "tr_fd6bbd6bf4204e19"
+      "trace_id": "tr_79fd1fe1b1934922"
      },
      "response_summary": {
-      "id": "00T927546446744",
+      "id": "00T346580983031",
       "status": "created"
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.781227+00:00"
+    "ts": "2026-07-22T15:24:57.320080+00:00"
    },
    {
     "id": 39,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 16,
     "step": "write_salesforce",
     "status": "ok",
-    "latency_ms": 40,
+    "latency_ms": 24,
     "detail": {
-     "task_id": "00T927546446744"
+     "task_id": "00T346580983031",
+     "object": "Task"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.782491+00:00"
+    "ts": "2026-07-22T15:24:57.321760+00:00"
    },
    {
     "id": 40,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 17,
-    "step": "gainsight.create_cta",
+    "step": "gainsight.create_timeline_activity",
     "status": "ok",
     "latency_ms": 0,
     "detail": {
      "attempt": 1,
      "request": {
-      "account_id": "ACC-9033",
-      "title": "Renewal risk: champion_loss",
-      "reason": "The executive sponsor changed and no relationship has been rebuilt.",
-      "priority": "high",
-      "evidence": [
-       {
-        "metric": "exec_sponsor_changed",
-        "value": true,
-        "interpretation": "Executive sponsor changed"
-       },
-       {
-        "metric": "qbr_last_days_ago",
-        "value": 195,
-        "interpretation": "No recent executive touchpoint"
-       }
-      ],
-      "trace_id": "tr_fd6bbd6bf4204e19"
+      "gainsight_company_id": "ACC-9033",
+      "risk_flag": "high",
+      "risk_summary": "Churn risk driver: champion loss. Executive sponsor changed and the last QBR was 195 days ago. Health score 52.",
+      "created_by_agent": "renewal_risk@1.3.0",
+      "trace_id": "tr_79fd1fe1b1934922"
      },
      "response_summary": {
-      "id": "cta_5698131265",
-      "status": "open"
+      "id": "csta_7193850541"
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.783628+00:00"
+    "ts": "2026-07-22T15:24:57.324013+00:00"
    },
    {
     "id": 41,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 18,
@@ -2018,14 +2589,15 @@
     "status": "ok",
     "latency_ms": 1,
     "detail": {
-     "cta_id": "cta_5698131265"
+     "activity_id": "csta_7193850541",
+     "object": "CSTA"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.784784+00:00"
+    "ts": "2026-07-22T15:24:57.325661+00:00"
    },
    {
     "id": 42,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 19,
@@ -2036,11 +2608,11 @@
      "revision": 1
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.786941+00:00"
+    "ts": "2026-07-22T15:24:57.328582+00:00"
    },
    {
     "id": 43,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 20,
@@ -2061,11 +2633,11 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.788082+00:00"
+    "ts": "2026-07-22T15:24:57.330091+00:00"
    },
    {
     "id": 44,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 21,
@@ -2084,11 +2656,11 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.789242+00:00"
+    "ts": "2026-07-22T15:24:57.335509+00:00"
    },
    {
     "id": 45,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 22,
@@ -2102,28 +2674,28 @@
      ]
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.790310+00:00"
+    "ts": "2026-07-22T15:24:57.337374+00:00"
    },
    {
     "id": 46,
-    "trace_id": "tr_fd6bbd6bf4204e19",
+    "trace_id": "tr_79fd1fe1b1934922",
     "event_id": "sf-evt-2026-07-21-0007",
     "agent": "renewal_risk",
     "seq": 23,
     "step": "run_finished",
     "status": "ok",
-    "latency_ms": 106,
+    "latency_ms": 96,
     "detail": {
      "summary": "high risk on Halcyon Analytics: champion_loss (55% confidence) -> #cs-renewals",
      "total_cost_usd": 0.0
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.791361+00:00"
+    "ts": "2026-07-22T15:24:57.338889+00:00"
    }
   ]
  },
- "/traces/tr_fd6bbd6bf4204e19/why": {
-  "trace_id": "tr_fd6bbd6bf4204e19",
+ "/traces/tr_79fd1fe1b1934922/why": {
+  "trace_id": "tr_79fd1fe1b1934922",
   "found": true,
   "agent": "renewal_risk",
   "event_id": "sf-evt-2026-07-21-0007",
@@ -2136,7 +2708,7 @@
    "Severity 'high' because health_score=52 <= 55 (rule: band_2)",
    "Writing to systems of record automatically: no outcome history for driver 'champion_loss' - treated as unproven (rule: auto_approved)",
    "Routed to #cs-renewals because rule 'high_owner_alert' matched severity=high in ['high'] (rule: high_owner_alert)",
-   "Run finished with status 'ok' in 106ms."
+   "Run finished with status 'ok' in 96ms."
   ],
   "decisions": [
    {
@@ -2205,7 +2777,7 @@
    "headline": "Halcyon Analytics: high churn risk, because the person who championed us internally has moved on",
    "lines": [
     "A message arrived from salesforce saying this customer's renewal date is coming up for Halcyon Analytics.",
-    "The agent looked up this customer across our systems and gathered 33 pieces of information about them.",
+    "The agent looked up this customer across our systems and gathered 38 pieces of information about them.",
     "Looking at that information, it judged the most likely reason this customer might leave is: the person who championed us internally has moved on. It was 55% sure.",
     "The AI model was not used for this one, so the answer came from the platform's own built-in rules instead. The conclusion is more cautious, and a person was asked to check it.",
     "It rated this a high priority, because their health score is 52 and they are worth $121,000 a year and they renew in 29 days.",
@@ -2215,12 +2787,12 @@
    "account": "Halcyon Analytics"
   }
  },
- "/traces/tr_88f0c30c016446ad": {
-  "trace_id": "tr_88f0c30c016446ad",
+ "/traces/tr_0c790c5220f146d2": {
+  "trace_id": "tr_0c790c5220f146d2",
   "steps": [
    {
     "id": 1,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 1,
@@ -2233,11 +2805,11 @@
      "account_id": "ACC-4417"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.601668+00:00"
+    "ts": "2026-07-22T15:24:57.139951+00:00"
    },
    {
     "id": 2,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 2,
@@ -2254,11 +2826,11 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.615982+00:00"
+    "ts": "2026-07-22T15:24:57.161752+00:00"
    },
    {
     "id": 3,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 3,
@@ -2273,11 +2845,11 @@
      "response_summary": {}
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.617325+00:00"
+    "ts": "2026-07-22T15:24:57.163078+00:00"
    },
    {
     "id": 4,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 4,
@@ -2292,28 +2864,28 @@
      "response_summary": {}
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.618390+00:00"
+    "ts": "2026-07-22T15:24:57.167222+00:00"
    },
    {
     "id": 5,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 5,
     "step": "fetch_context",
     "status": "ok",
-    "latency_ms": 3,
+    "latency_ms": 10,
     "detail": {
      "account_name": "Northwind Media Group",
      "arr_usd": 248000,
-     "fact_count": 33
+     "fact_count": 38
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.619481+00:00"
+    "ts": "2026-07-22T15:24:57.171375+00:00"
    },
    {
     "id": 6,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 6,
@@ -2330,11 +2902,11 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.620635+00:00"
+    "ts": "2026-07-22T15:24:57.173658+00:00"
    },
    {
     "id": 7,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 7,
@@ -2352,11 +2924,11 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.621972+00:00"
+    "ts": "2026-07-22T15:24:57.176242+00:00"
    },
    {
     "id": 8,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 8,
@@ -2375,11 +2947,11 @@
      ]
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.623010+00:00"
+    "ts": "2026-07-22T15:24:57.177988+00:00"
    },
    {
     "id": 9,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 9,
@@ -2387,15 +2959,15 @@
     "status": "ok",
     "latency_ms": null,
     "detail": {
-     "prompt": "renewal_risk.churn_driver@v2",
-     "fact_count": 33
+     "prompt": "renewal_risk.churn_driver@v5",
+     "fact_count": 38
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.624260+00:00"
+    "ts": "2026-07-22T15:24:57.179765+00:00"
    },
    {
     "id": 10,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 10,
@@ -2406,11 +2978,11 @@
      "degraded_reason": "llm_offline_mode"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.625347+00:00"
+    "ts": "2026-07-22T15:24:57.185104+00:00"
    },
    {
     "id": 11,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 11,
@@ -2426,32 +2998,32 @@
      "because": "no outcome history for driver 'adoption_decline' - treated as unproven"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.626873+00:00"
+    "ts": "2026-07-22T15:24:57.192547+00:00"
    },
    {
     "id": 12,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 12,
     "step": "analyse",
     "status": "degraded",
-    "latency_ms": 6,
+    "latency_ms": 19,
     "detail": {
      "degraded_reason": "llm_offline_mode",
      "driver": "adoption_decline",
      "method": "deterministic_fallback",
      "model": null,
-     "prompt_version": "v2",
+     "prompt_version": "v5",
      "confidence": 0.6,
      "cost_usd": 0.0
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.627978+00:00"
+    "ts": "2026-07-22T15:24:57.195138+00:00"
    },
    {
     "id": 13,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 13,
@@ -2469,11 +3041,11 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.629130+00:00"
+    "ts": "2026-07-22T15:24:57.199713+00:00"
    },
    {
     "id": 14,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 14,
@@ -2491,17 +3063,17 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.630138+00:00"
+    "ts": "2026-07-22T15:24:57.202905+00:00"
    },
    {
     "id": 15,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 15,
     "step": "salesforce.create_task",
     "status": "ok",
-    "latency_ms": 38,
+    "latency_ms": 2,
     "detail": {
      "attempt": 1,
      "request": {
@@ -2510,107 +3082,91 @@
       "description": "Churn risk driver: adoption decline. Seat utilisation dropped from 85.8% to 34.2% and health score is now 38. Recommend an adoption review before renewal.",
       "priority": "High",
       "owner": "Priya Raman",
-      "trace_id": "tr_88f0c30c016446ad"
+      "trace_id": "tr_0c790c5220f146d2"
      },
      "response_summary": {
-      "id": "00T904887099573",
+      "id": "00T041417497651",
       "status": "created"
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.670197+00:00"
+    "ts": "2026-07-22T15:24:57.211746+00:00"
    },
    {
     "id": 16,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 16,
     "step": "write_salesforce",
     "status": "ok",
-    "latency_ms": 40,
+    "latency_ms": 5,
     "detail": {
-     "task_id": "00T904887099573"
+     "task_id": "00T041417497651",
+     "object": "Task"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.671925+00:00"
+    "ts": "2026-07-22T15:24:57.214214+00:00"
    },
    {
     "id": 17,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 17,
-    "step": "gainsight.create_cta",
+    "step": "gainsight.create_timeline_activity",
     "status": "ok",
     "latency_ms": 0,
     "detail": {
      "attempt": 1,
      "request": {
-      "account_id": "ACC-4417",
-      "title": "Renewal risk: adoption_decline",
-      "reason": "Seat utilisation fell from 85.8% to 34.2%, so the customer is paying for capacity they no longer use.",
-      "priority": "critical",
-      "evidence": [
-       {
-        "metric": "seat_utilisation_pct",
-        "value": 34.2,
-        "interpretation": "Licensed seats largely unused"
-       },
-       {
-        "metric": "seat_utilisation_90d_ago_pct",
-        "value": 85.8,
-        "interpretation": "Utilisation was far higher 90 days ago"
-       },
-       {
-        "metric": "weekly_active_users",
-        "value": 22,
-        "interpretation": "Weekly active users are low"
-       }
-      ],
-      "trace_id": "tr_88f0c30c016446ad"
+      "gainsight_company_id": "ACC-4417",
+      "risk_flag": "critical",
+      "risk_summary": "Churn risk driver: adoption decline. Seat utilisation dropped from 85.8% to 34.2% and health score is now 38. Recommend an adoption review before renewal.",
+      "created_by_agent": "renewal_risk@1.3.0",
+      "trace_id": "tr_0c790c5220f146d2"
      },
      "response_summary": {
-      "id": "cta_7561934428",
-      "status": "open"
+      "id": "csta_3546164610"
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.673393+00:00"
+    "ts": "2026-07-22T15:24:57.218364+00:00"
    },
    {
     "id": 18,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 18,
     "step": "write_gainsight",
     "status": "ok",
-    "latency_ms": 1,
+    "latency_ms": 3,
     "detail": {
-     "cta_id": "cta_7561934428"
+     "activity_id": "csta_3546164610",
+     "object": "CSTA"
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.674505+00:00"
+    "ts": "2026-07-22T15:24:57.221481+00:00"
    },
    {
     "id": 19,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 19,
     "step": "update_golden_record",
     "status": "ok",
-    "latency_ms": 1,
+    "latency_ms": 2,
     "detail": {
      "revision": 1
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.676943+00:00"
+    "ts": "2026-07-22T15:24:57.226673+00:00"
    },
    {
     "id": 20,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 20,
@@ -2632,11 +3188,11 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.678190+00:00"
+    "ts": "2026-07-22T15:24:57.229155+00:00"
    },
    {
     "id": 21,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 21,
@@ -2655,17 +3211,17 @@
      }
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.679414+00:00"
+    "ts": "2026-07-22T15:24:57.231419+00:00"
    },
    {
     "id": 22,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 22,
     "step": "notify_slack",
     "status": "ok",
-    "latency_ms": 1,
+    "latency_ms": 3,
     "detail": {
      "channel": "#cs-exec-escalations",
      "recipients": [
@@ -2674,28 +3230,28 @@
      ]
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.680515+00:00"
+    "ts": "2026-07-22T15:24:57.235024+00:00"
    },
    {
     "id": 23,
-    "trace_id": "tr_88f0c30c016446ad",
+    "trace_id": "tr_0c790c5220f146d2",
     "event_id": "gs-evt-2026-07-21-0001",
     "agent": "renewal_risk",
     "seq": 23,
     "step": "run_finished",
     "status": "ok",
-    "latency_ms": 81,
+    "latency_ms": 98,
     "detail": {
      "summary": "critical risk on Northwind Media Group: adoption_decline (60% confidence) -> #cs-exec-escalations",
      "total_cost_usd": 0.0
     },
     "error": null,
-    "ts": "2026-07-22T15:01:40.681630+00:00"
+    "ts": "2026-07-22T15:24:57.237149+00:00"
    }
   ]
  },
- "/traces/tr_88f0c30c016446ad/why": {
-  "trace_id": "tr_88f0c30c016446ad",
+ "/traces/tr_0c790c5220f146d2/why": {
+  "trace_id": "tr_0c790c5220f146d2",
   "found": true,
   "agent": "renewal_risk",
   "event_id": "gs-evt-2026-07-21-0001",
@@ -2708,7 +3264,7 @@
    "Severity 'critical' because health_score=38 <= 40 and arr_usd=248000 >= 100000 (rule: band_0)",
    "Writing to systems of record automatically: no outcome history for driver 'adoption_decline' - treated as unproven (rule: auto_approved)",
    "Routed to #cs-exec-escalations because rule 'critical_exec_escalation' matched severity=critical in ['critical'] and arr_usd=248000 >= 100000 (rule: critical_exec_escalation)",
-   "Run finished with status 'ok' in 81ms."
+   "Run finished with status 'ok' in 98ms."
   ],
   "decisions": [
    {
@@ -2778,7 +3334,7 @@
    "headline": "Northwind Media Group: critical churn risk, because people have largely stopped using what they are paying for",
    "lines": [
     "A message arrived from gainsight saying this customer's health score has fallen for Northwind Media Group.",
-    "The agent looked up this customer across our systems and gathered 33 pieces of information about them.",
+    "The agent looked up this customer across our systems and gathered 38 pieces of information about them.",
     "Looking at that information, it judged the most likely reason this customer might leave is: people have largely stopped using what they are paying for. It was 60% sure.",
     "The AI model was not used for this one, so the answer came from the platform's own built-in rules instead. The conclusion is more cautious, and a person was asked to check it.",
     "It rated this a critical priority, because their health score is 38 and they are worth $248,000 a year and they renew in 70 days.",
@@ -2810,13 +3366,14 @@ let selected = null, lastWhy = null;
 function statusClass(s){ return s==='error'?'err':s==='degraded'?'deg':s==='skipped'?'warn':'ok'; }
 
 async function loadAll(){
-  const [runs, reg, dlq, cal, qual, tools, cost] = await Promise.all([
+  const [runs, reg, dlq, cal, qual, tools, cost, slack] = await Promise.all([
     get('/traces?limit=40'), get('/registry'), get('/dead-letters?limit=20'),
-    get('/calibration'), get('/quality'), get('/tools'), get('/cost')
+    get('/calibration'), get('/quality'), get('/tools'), get('/cost'), get('/slack')
   ]);
   renderQuality(qual);
   renderTools(tools);
   renderCost(cost);
+  renderSlack(slack);
 
   const totalRuns = runs.traces.length;
   const errored = runs.traces.filter(t => t.errors > 0).length;
@@ -2891,11 +3448,40 @@ const POLICY_WHY = {
   failure_injection: 'demo hook: prove the failure paths on demand',
 };
 
+function renderSlack(s){
+  if(!s || !s.messages || !s.messages.length){
+    $('slack').innerHTML = '<div class="empty">No alerts sent yet. Run <code>python runner.py</code>.</div>';
+    return;
+  }
+  $('slack').innerHTML = s.messages.map(m => `
+    <div class="msg">
+      <div class="msg-head">
+        <b>${esc(m.channel)}</b>
+        <span class="pill ${m.delivery==='posted'?'ok':''}">${esc(m.delivery||'captured')}</span>
+        <span class="tid">${esc((m.ts||'').replace('T',' ').slice(0,19))}</span>
+      </div>
+      <div class="msg-body">${esc(m.text)}</div>
+    </div>`).join('');
+}
+
 function renderCost(c){
   if(!c){ $('cost').innerHTML = '<div class="empty">No cost data.</div>'; return; }
   const pct = c.budget_used_pct ?? 0;
   const cls = pct >= 90 ? 'low' : pct >= 60 ? 'mid' : '';
-  $('cost').innerHTML = `<table>
+  const gpct = c.grant_used_pct ?? 0;
+  const grant = c.grant_total_usd ? `<table>
+    <tr><th>OpenRouter grant</th><th>Spent</th><th>Remaining</th><th>Runs still affordable</th></tr>
+    <tr>
+      <td><b>$${c.grant_total_usd.toFixed(2)}</b><div class="tid">provided for this exercise</div></td>
+      <td>$${(c.grant_spent_usd ?? 0).toFixed(4)}
+          <div class="bar ${gpct>=90?'low':gpct>=60?'mid':''}"><i style="width:${Math.min(gpct,100)}%"></i></div>
+          <div class="tid">${gpct}% used</div></td>
+      <td>$${(c.grant_remaining_usd ?? 0).toFixed(4)}</td>
+      <td>${c.cost_per_analysis_usd ? Math.floor((c.grant_remaining_usd||0)/c.cost_per_analysis_usd).toLocaleString() : '-'}
+          <div class="tid">at $${(c.cost_per_analysis_usd||0).toFixed(5)} per analysis</div></td>
+    </tr></table>` : '';
+
+  $('cost').innerHTML = grant + `<table>
     <tr><th>Today</th><th>Budget</th><th>Per analysis</th><th>Projected / month</th><th>State</th></tr>
     <tr>
       <td><b>$${(c.spent_today_usd ?? 0).toFixed(4)}</b>

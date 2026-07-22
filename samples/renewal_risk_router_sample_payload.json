@@ -1,0 +1,234 @@
+{
+  "_readme": "Sample scaffold for the AI Platform Engineer take-home. Three Supermetrics customer accounts, three different underlying churn drivers, all with a similar-looking trigger event. Product/connector names reflect real Supermetrics offerings (data source connectors like Google Ads, Facebook Ads, Salesforce; destinations like BigQuery, Looker Studio, Google Sheets, Excel). A candidate whose analysis step just reformats the trigger event will produce near-identical summaries for all three accounts. A candidate doing real analysis will name the distinct driver per account and cite the specific evidence for it. Note: evt_1001 is included twice in trigger_events on purpose, with the same event_id but a later timestamp, simulating a webhook redelivery — your write step should handle this without creating a duplicate CRM record or duplicate alert.",
+
+  "trigger_events": [
+    {
+      "event_id": "evt_1001",
+      "event_type": "renewal_risk_signal",
+      "account_id": "acct_usage_dropoff",
+      "account_name": "Northwind Retail Group",
+      "account_tier": "enterprise",
+      "renewal_date": "2026-08-25",
+      "days_to_renewal": 42,
+      "health_score_current": 38,
+      "health_score_30d_ago": 52,
+      "timestamp": "2026-07-14T09:12:00Z"
+    },
+    {
+      "event_id": "evt_1001",
+      "event_type": "renewal_risk_signal",
+      "account_id": "acct_usage_dropoff",
+      "account_name": "Northwind Retail Group",
+      "account_tier": "enterprise",
+      "renewal_date": "2026-08-25",
+      "days_to_renewal": 42,
+      "health_score_current": 38,
+      "health_score_30d_ago": 52,
+      "timestamp": "2026-07-14T09:14:31Z",
+      "_note": "Simulated redelivery of evt_1001 (same event_id, retried a few minutes later). Your pipeline should not write a second CRM update or send a second alert for this."
+    },
+    {
+      "event_id": "evt_1002",
+      "event_type": "renewal_risk_signal",
+      "account_id": "acct_support_pain",
+      "account_name": "Bluefin Analytics",
+      "account_tier": "mid_market",
+      "renewal_date": "2026-08-10",
+      "days_to_renewal": 27,
+      "health_score_current": 41,
+      "health_score_30d_ago": 55,
+      "timestamp": "2026-07-14T09:12:00Z"
+    },
+    {
+      "event_id": "evt_1003",
+      "event_type": "renewal_risk_signal",
+      "account_id": "acct_champion_left",
+      "account_name": "Verdant Foods Co",
+      "account_tier": "enterprise",
+      "renewal_date": "2026-09-01",
+      "days_to_renewal": 49,
+      "health_score_current": 45,
+      "health_score_30d_ago": 63,
+      "timestamp": "2026-07-14T09:12:00Z"
+    }
+  ],
+
+  "account_context_bundles": {
+
+    "acct_usage_dropoff": {
+      "company_profile": {
+        "name": "Northwind Retail Group",
+        "industry": "Retail & FMCG",
+        "employees": "2,500-5,000",
+        "arr_usd": 84000,
+        "contract_type": "Enterprise, annual, auto-renew opt-out",
+        "primary_use_case": "Cross-channel paid media reporting for regional marketing teams, rolled up into a global board dashboard.",
+        "account_owner": {
+          "name": "Elena Kowalski",
+          "role": "Customer Success Manager",
+          "email": "elena.kowalski@supermetrics.com",
+          "team": "CS - Enterprise"
+        },
+        "crm_record_ids": {
+          "salesforce_opportunity_id": "006Qa000004Fz1aIAC",
+          "gainsight_company_id": "1P0N6PZQZ5V8OQXW9E7A"
+        },
+        "supermetrics_footprint": {
+          "plan": "Enterprise",
+          "primary_destination": "BigQuery (Supermetrics Storage)",
+          "secondary_destinations": ["Looker Studio"],
+          "connected_data_sources": ["Google Ads", "Facebook Ads", "Instagram Insights", "TikTok Ads", "Google Analytics 4"],
+          "scheduled_transfers": 14,
+          "seats": 22,
+          "admin_users": ["priya.nair@northwindretail.com", "d.osei@northwindretail.com"]
+        }
+      },
+      "health_score_trend_6mo": [
+        {"month": "2026-02", "score": 74},
+        {"month": "2026-03", "score": 71},
+        {"month": "2026-04", "score": 68},
+        {"month": "2026-05", "score": 61},
+        {"month": "2026-06", "score": 52},
+        {"month": "2026-07", "score": 38}
+      ],
+      "usage_snippets": [
+        "Weekly active users in the Supermetrics Hub down from 24 to 6 over the last 8 weeks.",
+        "BigQuery scheduled transfers (14 active) reduced from daily to weekly cadence for Google Ads and Facebook Ads on 2026-06-12.",
+        "TikTok Ads and Instagram Insights transfers paused entirely as of 2026-06-15 (no data flowing since).",
+        "No Looker Studio dashboard views from the regional marketing team in 19 days; previously ~40 views/week.",
+        "API token last used 2026-06-28 for a manual query; previously used daily by the analytics team.",
+        "Seat login activity: 18 of 22 seats inactive for 30+ days."
+      ],
+      "recent_support_tickets": [
+        {"date": "2026-05-02", "subject": "Question about BigQuery transfer scheduling options", "status": "resolved"},
+        {"date": "2026-04-10", "subject": "Clarify field mapping for GA4 connector in Looker Studio", "status": "resolved"}
+      ],
+      "cs_notes": [
+        "2026-06-01: Quick check-in call, contact said the analytics team was 'busy with an internal re-org' and would circle back on reducing scheduled transfer frequency.",
+        "2026-06-20: No response to two follow-up emails about the reduced transfer cadence.",
+        "2026-07-05: Contact's out-of-office auto-reply mentions a new role title; no alternate contact provided.",
+        "2026-07-11: LinkedIn shows the regional marketing team headcount has dropped from 9 to 4 since April, consistent with a re-org."
+      ]
+    },
+
+    "acct_support_pain": {
+      "company_profile": {
+        "name": "Bluefin Analytics",
+        "industry": "Data & Analytics Consulting (Marketing Team segment)",
+        "employees": "250-500",
+        "arr_usd": 31000,
+        "contract_type": "Mid-market, annual",
+        "primary_use_case": "Blending paid media spend with Salesforce pipeline data for marketing-sourced revenue reporting, shared with leadership.",
+        "account_owner": {
+          "name": "Tomás Reyes",
+          "role": "Customer Success Manager",
+          "email": "tomas.reyes@supermetrics.com",
+          "team": "CS - Mid-Market"
+        },
+        "crm_record_ids": {
+          "salesforce_opportunity_id": "006Qa000004Fz2bIAC",
+          "gainsight_company_id": "1P0N6PZQZ5V8OQXW9F2B"
+        },
+        "supermetrics_footprint": {
+          "plan": "Team",
+          "primary_destination": "Looker Studio",
+          "secondary_destinations": ["Google Sheets"],
+          "connected_data_sources": ["Google Ads", "LinkedIn Ads", "Salesforce"],
+          "scheduled_transfers": 6,
+          "seats": 8,
+          "admin_users": ["j.moreau@bluefinanalytics.io"]
+        }
+      },
+      "health_score_trend_6mo": [
+        {"month": "2026-02", "score": 70},
+        {"month": "2026-03", "score": 69},
+        {"month": "2026-04", "score": 65},
+        {"month": "2026-05", "score": 60},
+        {"month": "2026-06", "score": 55},
+        {"month": "2026-07", "score": 41}
+      ],
+      "usage_snippets": [
+        "Weekly active users stable at 30-33 over the last 8 weeks — no drop in logins.",
+        "Looker Studio dashboard views and Google Sheets refreshes unchanged from prior quarter.",
+        "Scheduled transfer volume consistent with historical baseline (6 transfers/day).",
+        "Salesforce connector sync success rate dropped from 99% to 71% over the last 3 weeks specifically for the Opportunity object; other objects (Account, Contact) unaffected."
+      ],
+      "recent_support_tickets": [
+        {"date": "2026-06-02", "subject": "Salesforce connector intermittently failing to sync Opportunity stage field into Looker Studio", "status": "reopened"},
+        {"date": "2026-06-09", "subject": "Same Opportunity sync issue recurring after suggested fix (field-level permission change)", "status": "reopened"},
+        {"date": "2026-06-24", "subject": "Data discrepancy: marketing-sourced revenue dashboard shows different Opportunity stages than Salesforce directly, third occurrence", "status": "open"},
+        {"date": "2026-07-08", "subject": "Escalation: leadership asking why Supermetrics dashboard numbers don't match Salesforce reports used in the board deck", "status": "open"}
+      ],
+      "cs_notes": [
+        "2026-06-25: Customer visibly frustrated on call, said 'we can't trust the numbers anymore, and we present this to the board.'",
+        "2026-07-09: Customer asked directly what we're doing to prevent this recurring; no committed fix date given yet.",
+        "2026-07-12: Support engineering flagged this as a known intermittent bug in the Salesforce connector's Opportunity stage field mapping, fix targeted for next connector release — not yet communicated to customer."
+      ]
+    },
+
+    "acct_champion_left": {
+      "company_profile": {
+        "name": "Verdant Foods Co",
+        "industry": "Retail & FMCG (Food & Beverage)",
+        "employees": "1,000-2,500",
+        "arr_usd": 67000,
+        "contract_type": "Enterprise, annual, single champion-led onboarding",
+        "primary_use_case": "Monthly board-level marketing performance reporting, built and maintained almost entirely by one person (VP Marketing Ops).",
+        "account_owner": {
+          "name": "Sanna Virtanen",
+          "role": "Customer Success Manager",
+          "email": "sanna.virtanen@supermetrics.com",
+          "team": "CS - Enterprise"
+        },
+        "crm_record_ids": {
+          "salesforce_opportunity_id": "006Qa000004Fz3cIAC",
+          "gainsight_company_id": "1P0N6PZQZ5V8OQXW9G4C"
+        },
+        "supermetrics_footprint": {
+          "plan": "Enterprise",
+          "primary_destination": "Google Sheets",
+          "secondary_destinations": ["Excel"],
+          "connected_data_sources": ["Google Ads", "Facebook Ads", "Amazon Ads", "Google Analytics 4"],
+          "scheduled_transfers": 5,
+          "seats": 11,
+          "admin_users": ["m.fontaine@verdantfoods.com (departed 2026-06-01, access not yet revoked)"]
+        }
+      },
+      "health_score_trend_6mo": [
+        {"month": "2026-02", "score": 78},
+        {"month": "2026-03", "score": 76},
+        {"month": "2026-04", "score": 74},
+        {"month": "2026-05", "score": 70},
+        {"month": "2026-06", "score": 63},
+        {"month": "2026-07", "score": 45}
+      ],
+      "usage_snippets": [
+        "Weekly active users down from 18 to 11, a moderate decline — not a cliff.",
+        "Scheduled Google Sheets refreshes (5 active) still running normally on automated jobs — no technical disruption.",
+        "Ad-hoc report building and new query creation (non-scheduled) down sharply — from ~40/week to ~5/week since June.",
+        "No new dashboards, tabs, or saved queries created since 2026-06-01.",
+        "Only 1 of 11 seats has admin-level access to modify scheduled transfers, and that seat belongs to the departed champion."
+      ],
+      "recent_support_tickets": [
+        {"date": "2026-04-15", "subject": "Adding new team member seats ahead of Q3 planning", "status": "resolved"}
+      ],
+      "cs_notes": [
+        "2026-06-18: Primary champion (VP Marketing Ops, Marc Fontaine) confirmed via LinkedIn as having left the company as of June 1.",
+        "2026-06-22: Email to champion bounced with an out-of-office/no-longer-with-company auto-reply.",
+        "2026-07-02: No replacement contact identified yet; the reporting setup was champion-led and no one else on the account has admin access to modify or troubleshoot it.",
+        "2026-07-10: Reached out to a Contact-role user (analyst level) who confirmed 'reports still seem to be running' but said they don't know how to change anything and haven't been told who owns the relationship now."
+      ]
+    }
+  },
+
+  "mock_crm_write_examples": {
+    "salesforce": {
+      "object": "Opportunity",
+      "fields_to_update": ["Renewal_Risk_Level__c", "Risk_Driver__c", "Last_Risk_Analysis_Date__c"]
+    },
+    "gainsight": {
+      "object": "CSTA (Timeline Activity)",
+      "fields_to_update": ["risk_flag", "risk_summary", "created_by_agent"]
+    }
+  }
+}

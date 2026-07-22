@@ -74,6 +74,14 @@ def handle(ctx) -> dict[str, Any]:
             marketing = {}
             step.set(hubspot_unavailable=str(exc))
 
+        # Renewal timing rides on the trigger, not the CRM record, in the
+        # supplied payload. Taking it from the event when the account lacks it
+        # keeps one code path for both shapes.
+        trigger = ctx.event.payload or {}
+        for key in ("renewal_date", "days_to_renewal", "account_tier"):
+            if account.get(key) in (None, "") and trigger.get(key) is not None:
+                account[key] = trigger[key]
+
         facts = build_facts(account, health, marketing)
         step.set(account_name=account.get("name"), arr_usd=account.get("arr_usd"),
                  fact_count=len(facts))
@@ -166,36 +174,55 @@ def handle(ctx) -> dict[str, Any]:
         trace.record("write_gainsight", SKIPPED, reason="awaiting human approval")
     else:
         with trace.step("write_salesforce") as step:
-            task = ctx.tools.salesforce.call(
-                "create_task",
-                {
-                    "account_id": account_id,
-                    "subject": f"[{severity.level.upper()}] Renewal risk: {analysis.driver}",
-                    "description": analysis.alert_message,
-                    "priority": "High" if severity.level in ("critical", "high") else "Normal",
-                    "owner": account.get("owner"),
-                    "trace_id": trace.trace_id,
-                },
-                idempotency_key=f"{ctx.event.event_id}:sf_task",
-            )
-            writes["salesforce_task_id"] = task["id"]
-            step.set(task_id=task["id"])
+            opportunity_id = account.get("opportunity_id")
+            if opportunity_id:
+                # Field names per the supplied payload's mock_crm_write_examples.
+                written = ctx.tools.salesforce.call(
+                    "update_opportunity",
+                    {
+                        "opportunity_id": opportunity_id,
+                        "Renewal_Risk_Level__c": severity.level.title(),
+                        "Risk_Driver__c": analysis.driver,
+                        "Last_Risk_Analysis_Date__c":
+                            datetime.now(timezone.utc).date().isoformat(),
+                        "trace_id": trace.trace_id,
+                    },
+                    idempotency_key=f"{ctx.event.event_id}:sf_opp",
+                )
+                writes["salesforce_opportunity_id"] = written["id"]
+                step.set(opportunity_id=written["id"], object="Opportunity")
+            else:
+                # Accounts from our own fixtures carry no Opportunity id; the
+                # Task path stays so both datasets still work.
+                written = ctx.tools.salesforce.call(
+                    "create_task",
+                    {
+                        "account_id": account_id,
+                        "subject": f"[{severity.level.upper()}] Renewal risk: {analysis.driver}",
+                        "description": analysis.alert_message,
+                        "priority": "High" if severity.level in ("critical", "high") else "Normal",
+                        "owner": account.get("owner"),
+                        "trace_id": trace.trace_id,
+                    },
+                    idempotency_key=f"{ctx.event.event_id}:sf_task",
+                )
+                writes["salesforce_task_id"] = written["id"]
+                step.set(task_id=written["id"], object="Task")
 
         with trace.step("write_gainsight") as step:
-            cta = ctx.tools.gainsight.call(
-                "create_cta",
+            activity = ctx.tools.gainsight.call(
+                "create_timeline_activity",
                 {
-                    "account_id": account_id,
-                    "title": f"Renewal risk: {analysis.driver}",
-                    "reason": analysis.driver_explanation,
-                    "priority": severity.level,
-                    "evidence": [e.model_dump() for e in analysis.evidence],
+                    "gainsight_company_id": account.get("gainsight_company_id") or account_id,
+                    "risk_flag": severity.level,
+                    "risk_summary": analysis.alert_message,
+                    "created_by_agent": f"{AGENT_NAME}@{ctx.entry.version}",
                     "trace_id": trace.trace_id,
                 },
-                idempotency_key=f"{ctx.event.event_id}:gs_cta",
+                idempotency_key=f"{ctx.event.event_id}:gs_csta",
             )
-            writes["gainsight_cta_id"] = cta["id"]
-            step.set(cta_id=cta["id"])
+            writes["gainsight_activity_id"] = activity["id"]
+            step.set(activity_id=activity["id"], object="CSTA")
 
     # 6. Golden record. This platform owns these fields and stamps provenance on
     #    every write, so no downstream consumer has to guess where they came from.

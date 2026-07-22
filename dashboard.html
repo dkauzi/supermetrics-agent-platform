@@ -68,6 +68,11 @@
   .navlink{color:var(--muted);text-decoration:none;font-size:12.5px;font-weight:600;
            padding:5px 10px;border:1px solid var(--line);border-radius:6px;margin-right:8px}
   .navlink:hover{color:var(--accent);border-color:var(--accent)}
+  .msg{border:1px solid var(--line);border-radius:8px;margin:12px 16px;overflow:hidden}
+  .msg-head{display:flex;align-items:center;gap:9px;padding:8px 13px;background:var(--bg);
+            border-bottom:1px solid var(--line);font-size:12.5px}
+  .msg-body{padding:12px 14px;font:13px/1.62 ui-monospace,SFMono-Regular,Menlo,monospace;
+            white-space:pre-wrap;word-break:break-word}
   .plain{padding:16px}
   .plain-head{font-size:15.5px;font-weight:640;letter-spacing:-.01em;margin-bottom:10px}
   .plain-list{margin:0;padding-left:20px;font-size:14px;line-height:1.65}
@@ -126,6 +131,14 @@
       </div>
 
       <div class="card">
+        <h2>Slack outbox - what the account owner actually receives</h2>
+        <div class="body" id="slack"></div>
+        <div class="note">The alert is the deliverable; everything else exists to make it
+          trustworthy. Mocked by default. Set <code>SLACK_WEBHOOK_URL</code> and the same
+          messages really post, with no agent change.</div>
+      </div>
+
+      <div class="card">
         <h2>Cost and runaway protection</h2>
         <div class="body" id="cost"></div>
         <div class="note">Past the soft ceiling the platform stops paying for the model and
@@ -172,13 +185,14 @@ let selected = null, lastWhy = null;
 function statusClass(s){ return s==='error'?'err':s==='degraded'?'deg':s==='skipped'?'warn':'ok'; }
 
 async function loadAll(){
-  const [runs, reg, dlq, cal, qual, tools, cost] = await Promise.all([
+  const [runs, reg, dlq, cal, qual, tools, cost, slack] = await Promise.all([
     get('/traces?limit=40'), get('/registry'), get('/dead-letters?limit=20'),
-    get('/calibration'), get('/quality'), get('/tools'), get('/cost')
+    get('/calibration'), get('/quality'), get('/tools'), get('/cost'), get('/slack')
   ]);
   renderQuality(qual);
   renderTools(tools);
   renderCost(cost);
+  renderSlack(slack);
 
   const totalRuns = runs.traces.length;
   const errored = runs.traces.filter(t => t.errors > 0).length;
@@ -253,11 +267,40 @@ const POLICY_WHY = {
   failure_injection: 'demo hook: prove the failure paths on demand',
 };
 
+function renderSlack(s){
+  if(!s || !s.messages || !s.messages.length){
+    $('slack').innerHTML = '<div class="empty">No alerts sent yet. Run <code>python runner.py</code>.</div>';
+    return;
+  }
+  $('slack').innerHTML = s.messages.map(m => `
+    <div class="msg">
+      <div class="msg-head">
+        <b>${esc(m.channel)}</b>
+        <span class="pill ${m.delivery==='posted'?'ok':''}">${esc(m.delivery||'captured')}</span>
+        <span class="tid">${esc((m.ts||'').replace('T',' ').slice(0,19))}</span>
+      </div>
+      <div class="msg-body">${esc(m.text)}</div>
+    </div>`).join('');
+}
+
 function renderCost(c){
   if(!c){ $('cost').innerHTML = '<div class="empty">No cost data.</div>'; return; }
   const pct = c.budget_used_pct ?? 0;
   const cls = pct >= 90 ? 'low' : pct >= 60 ? 'mid' : '';
-  $('cost').innerHTML = `<table>
+  const gpct = c.grant_used_pct ?? 0;
+  const grant = c.grant_total_usd ? `<table>
+    <tr><th>OpenRouter grant</th><th>Spent</th><th>Remaining</th><th>Runs still affordable</th></tr>
+    <tr>
+      <td><b>$${c.grant_total_usd.toFixed(2)}</b><div class="tid">provided for this exercise</div></td>
+      <td>$${(c.grant_spent_usd ?? 0).toFixed(4)}
+          <div class="bar ${gpct>=90?'low':gpct>=60?'mid':''}"><i style="width:${Math.min(gpct,100)}%"></i></div>
+          <div class="tid">${gpct}% used</div></td>
+      <td>$${(c.grant_remaining_usd ?? 0).toFixed(4)}</td>
+      <td>${c.cost_per_analysis_usd ? Math.floor((c.grant_remaining_usd||0)/c.cost_per_analysis_usd).toLocaleString() : '-'}
+          <div class="tid">at $${(c.cost_per_analysis_usd||0).toFixed(5)} per analysis</div></td>
+    </tr></table>` : '';
+
+  $('cost').innerHTML = grant + `<table>
     <tr><th>Today</th><th>Budget</th><th>Per analysis</th><th>Projected / month</th><th>State</th></tr>
     <tr>
       <td><b>$${(c.spent_today_usd ?? 0).toFixed(4)}</b>

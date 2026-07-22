@@ -22,6 +22,9 @@ agents:
     subscribes_to:
       - health_score.dropped
       - renewal.approaching
+      # The supplied sample payload's combined signal. Subscribing to a new
+      # trigger is this line: no agent code changed to accept it.
+      - renewal.risk_signal
     tools:
       - salesforce
       - gainsight
