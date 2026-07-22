@@ -97,13 +97,17 @@ def main() -> int:
         f"<script>window.__SNAPSHOT__ = {payload};</script>\n<script>",
         1,
     )
-    (SITE / "index.html").write_text(injected)
+    # dashboard.html, never index.html: docs/index.html is the hand-written front
+    # door and presentation surface, and must not be clobbered by a rebuild.
+    (SITE / "dashboard.html").write_text(injected)
     (SITE / ".nojekyll").write_text("")
 
     size_kb = len(injected) / 1024
-    print(f"\nWrote {SITE / 'index.html'} ({size_kb:.0f} KB)")
+    print(f"\nWrote {SITE / 'dashboard.html'} ({size_kb:.0f} KB)")
     print(f"Captured {len([k for k in snapshot if k.startswith('/')])} endpoint responses")
     print("Published via GitHub Pages from branch main, /docs")
+    print("  landing   docs/index.html      (hand-written, not touched by this script)")
+    print("  dashboard docs/dashboard.html  (this output)")
     return 0
 
 
