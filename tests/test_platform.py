@@ -521,6 +521,56 @@ def test_trusted_run_writes_without_asking(platform):
     assert record["data"]["renewal_risk_write_status"] == "asserted"
 
 
+# ── Payload shape tolerance ────────────────────────────────────────────────────
+# The brief references a payload sample we were not given. These pin the aliases
+# we accept, so a differently-shaped-but-equivalent payload still routes, while
+# a genuinely unrecognisable one still dead-letters loudly.
+
+@pytest.mark.parametrize("payload", [
+    {"account": {"id": "ACC-4417"}},
+    {"accountId": "ACC-4417"},
+    {"account_id": "ACC-4417"},
+    {"organization_id": "ACC-4417"},
+])
+def test_known_account_id_aliases_all_resolve(payload):
+    from agentplatform.events import normalise
+    assert normalise("gainsight", payload).account_id == "ACC-4417"
+
+
+def test_flat_vendor_payload_still_routes():
+    """A realistic flat payload, unlike our nested sample, must still work."""
+    from agentplatform.events import normalise
+    event = normalise("gainsight", {
+        "account_id": "ACC-4417", "account_name": "Northwind Media Group",
+        "health_score": 38, "previous_health_score": 74,
+        "renewal_date": "2026-09-30",
+    })
+    assert event.account_id == "ACC-4417"
+    assert event.event_type == "health_score.dropped"
+
+
+def test_unrecognisable_payload_still_fails_loudly(platform):
+    """Tolerance must not become guessing.
+
+    Accepting more aliases must not soften the boundary: a payload with no
+    resolvable account raises AND is dead-lettered with the reason, so it is
+    visible rather than quietly processed against the wrong account.
+    """
+    with pytest.raises(ValueError, match="account_id"):
+        platform.ingest("gainsight", {"something": "unexpected"})
+
+    letters = platform.warehouse.dead_letters()
+    assert letters, "must be recorded, not dropped"
+    assert letters[0]["reason"] == "missing_account_id"
+
+
+def test_salesforce_id_aliases_resolve():
+    from agentplatform.events import normalise
+    for payload in ({"AccountId": "ACC-9033"}, {"account_id": "ACC-9033"},
+                    {"Account": {"Id": "ACC-9033"}}):
+        assert normalise("salesforce", payload).account_id == "ACC-9033"
+
+
 # ── OpenTelemetry ──────────────────────────────────────────────────────────────
 
 def test_all_step_spans_nest_under_one_run_span(platform, monkeypatch):

@@ -178,7 +178,36 @@ Both agents now run on that one event. Show the dashboard: two traces, both full
 
 ---
 
-## 6. "Show me the failure handling" (30 seconds)
+## 6. "Here is our actual payload" (2 minutes) - the one most likely to happen
+
+The brief references a sample payload we were never sent. If they hand you one live, this is the moment the architecture either pays off or does not.
+
+Common aliases already resolve (`account.id`, `accountId`, `account_id`, `organization_id`), so try it first:
+
+```bash
+.venv/bin/python cli.py send gainsight their-payload.json
+```
+
+If it dead-letters, **say that this is correct** before you fix anything:
+
+> "It refused it and told us why, rather than guessing which field was the account and writing to the wrong customer. Onboarding a new shape is one function."
+
+Then add the alias in `agentplatform/events.py` → `normalise_gainsight`:
+
+```python
+account_id=str(_first_present(
+    payload, "account.id", "accountId", "account_id",
+    "theirFieldName",        # <- their key
+    default="")),
+```
+
+Re-run. One line, no agent touched.
+
+> "That containment is the point. A vendor changing their payload is one function here, not a hunt through every agent that consumes it."
+
+---
+
+## 7. "Show me the failure handling" (30 seconds)
 
 ```bash
 TOOL_FAILURE_INJECTION_RATE=0.4 .venv/bin/python runner.py

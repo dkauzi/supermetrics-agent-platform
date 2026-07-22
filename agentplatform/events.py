@@ -54,17 +54,40 @@ def _fallback_event_id(source: str, payload: dict[str, Any]) -> str:
     return f"{source}-{digest}"
 
 
+def _first_present(payload: dict[str, Any], *paths: str, default: Any = None) -> Any:
+    """First value found among a declared list of dotted key paths.
+
+    Not fuzzy matching. Each path is an alias we have actually seen a vendor use,
+    written down explicitly, so behaviour stays predictable and reviewable. The
+    same webhook is sent with `account.id` by one Gainsight rule and `accountId`
+    by another, and a missing account id is the difference between an alert and a
+    dead letter. What we do NOT do is guess at unlisted keys: an unrecognised
+    payload dead-letters loudly so someone adds the alias on purpose.
+    """
+    for path in paths:
+        node: Any = payload
+        for part in path.split("."):
+            if not isinstance(node, dict) or part not in node:
+                node = None
+                break
+            node = node[part]
+        if node not in (None, ""):
+            return node
+    return default
+
+
 def normalise_gainsight(payload: dict[str, Any]) -> Event:
     """Gainsight health-score webhook -> Event."""
-    account = payload.get("account") or {}
-    health = payload.get("health") or {}
-
     return Event(
-        event_id=payload.get("eventId") or _fallback_event_id("gainsight", payload),
+        event_id=_first_present(payload, "eventId", "event_id", "id")
+                 or _fallback_event_id("gainsight", payload),
         event_type="health_score.dropped",
         source="gainsight",
-        account_id=str(account.get("id") or payload.get("accountId") or ""),
-        occurred_at=payload.get("triggeredAt") or datetime.now(timezone.utc),
+        account_id=str(_first_present(
+            payload, "account.id", "accountId", "account_id", "account.accountId",
+            "organization_id", default="")),
+        occurred_at=_first_present(payload, "triggeredAt", "triggered_at", "timestamp")
+                    or datetime.now(timezone.utc),
         payload=payload,
     )
 
@@ -72,11 +95,14 @@ def normalise_gainsight(payload: dict[str, Any]) -> Event:
 def normalise_salesforce(payload: dict[str, Any]) -> Event:
     """Salesforce renewal-approaching webhook -> Event."""
     return Event(
-        event_id=payload.get("eventId") or _fallback_event_id("salesforce", payload),
+        event_id=_first_present(payload, "eventId", "event_id", "Id")
+                 or _fallback_event_id("salesforce", payload),
         event_type="renewal.approaching",
         source="salesforce",
-        account_id=str(payload.get("AccountId") or payload.get("accountId") or ""),
-        occurred_at=payload.get("triggeredAt") or datetime.now(timezone.utc),
+        account_id=str(_first_present(
+            payload, "AccountId", "accountId", "account_id", "Account.Id", default="")),
+        occurred_at=_first_present(payload, "triggeredAt", "triggered_at", "CreatedDate")
+                    or datetime.now(timezone.utc),
         payload=payload,
     )
 
