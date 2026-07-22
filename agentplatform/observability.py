@@ -33,6 +33,8 @@ DEGRADED = "degraded"
 TRIGGER_IN_PLAIN_ENGLISH = {
     "health_score.dropped": "this customer's health score has fallen",
     "renewal.approaching": "this customer's renewal date is coming up",
+    "renewal.risk_signal": "this customer's renewal is coming up and their health score "
+                           "has fallen",
     "support.ticket_spike": "this customer has raised a lot of support tickets",
     "platform.audit_requested": "it is time for the scheduled platform check",
 }
@@ -42,7 +44,12 @@ DRIVER_IN_PLAIN_ENGLISH = {
     "support_burden": "they have had a bad run with support",
     "champion_loss": "the person who championed us internally has moved on",
     "value_realisation_gap": "they are using it but not getting the results they wanted",
-    "data_integration_regression": "they have disconnected data sources they used to rely on",
+    # Covers both halves of this driver: connections switched off, and
+    # connections still on but no longer returning trustworthy data. Saying only
+    # "disconnected" misdescribed an account whose connector was failing, which
+    # would send the account owner into the wrong conversation.
+    "data_integration_regression": "the data connections they depend on have stopped "
+                                   "working reliably",
     "engagement_gap": "we have not had meaningful contact with them in a long time",
     "pricing_pressure": "there is budget or pricing pressure on their side",
     "unknown": "no single clear reason stands out in the data we hold",

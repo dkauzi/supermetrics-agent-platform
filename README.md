@@ -8,10 +8,12 @@
 
 Built as the first agent on a shared platform rather than a standalone script: the brief describes one agent, the role owns the layer many agents plug into. Three agents run on it today.
 
+`runner.py` executes the supplied `renewal_risk_router_sample_payload.json` as given: three accounts with near-identical triggers resolve to **three distinct correct drivers**, and the redelivered `evt_1001` is deduped with no second CRM write and no second alert.
+
 ```bash
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
 cp .env.example .env          # optional: add OPENROUTER_API_KEY
-.venv/bin/python runner.py    # 6 scenarios, including the failure paths
+.venv/bin/python runner.py    # runs YOUR sample payload first, then the failure paths
 .venv/bin/uvicorn app:app     # dashboard on http://127.0.0.1:8000
 ```
 

@@ -127,4 +127,4 @@ Then, in order: SQLite → BigQuery (the implementation exists, `warehouse_bigqu
 - Pseudonymisation before the LLM call is data *minimisation*, not GDPR anonymisation: the mapping lives in memory for the run, and metrics could in principle be linkable.
 - The OpenTelemetry path is verified (spans nest correctly under one trace per run, ids land on decision rows, and it no-ops without a collector), but **`docker compose up` has not been executed** - no Docker daemon on the build machine. The compose file parses and the Dockerfile's inputs all exist; the image build itself is unproven.
 
-`pytest -q` → 74 tests, weighted to failure paths. `python cli.py eval` → golden eval gate.
+`pytest -q` → 81 tests, weighted to failure paths. `python cli.py eval` → golden eval gate.

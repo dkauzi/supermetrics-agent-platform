@@ -113,21 +113,46 @@
     facts from Salesforce, Gainsight, HubSpot and Zendesk, uses an LLM to work out the likely
     reason they might leave, writes the finding back to the CRM, and alerts the account owner in
     Slack with the specific numbers behind it.</p>
-    <p>Every step is recorded, so anyone can ask <b>"why did this agent do that?"</b> and get this,
-    with no code and no log files:</p>
+    <p>Every step is recorded, so anyone can ask <b>"why did this agent do that?"</b> and get
+    this, with no code and no log files. Real output, from the sample payload Supermetrics
+    supplied:</p>
 
     <div class="quote">
-      <b>Halcyon Analytics: high churn risk, because the person who championed us internally has moved on</b>
+      <b>Verdant Foods Co: high churn risk, because the person who championed us internally has moved on</b>
       <ol>
-        <li>A message arrived from Salesforce saying this customer's renewal date is coming up.</li>
-        <li>The agent looked up this customer across our systems and gathered 33 pieces of information about them.</li>
-        <li>It judged the most likely reason this customer might leave is: the person who championed us internally has moved on. It was 55% sure.</li>
-        <li>It rated this a high priority, because their health score is 52, they are worth $121,000 a year, and they renew in 30 days.</li>
-        <li>It posted an alert to #cs-renewals for @ines, with the numbers that led to this conclusion.</li>
+        <li>A message arrived saying this customer's renewal is coming up and their health score has fallen.</li>
+        <li>The agent looked up this customer across our systems and gathered 14 pieces of information about them.</li>
+        <li>It judged the most likely reason this customer might leave is: the person who championed us internally has moved on. It was 92% sure.</li>
+        <li>It rated this a high priority, because their health score is 45 and they are worth $67,000 a year.</li>
+        <li>It recorded the finding in Salesforce and Gainsight, then alerted the account owner in #cs-renewals with the numbers behind it.</li>
       </ol>
     </div>
-    <p class="muted small">The same run is also available as rules, values and timings for whoever
-    is debugging it. Both are rendered from one trace, so they cannot disagree.</p>
+    <p class="muted small">The same run is also available as rules, values and timings for
+    whoever is debugging it. Both are rendered from one trace, so they cannot disagree.</p>
+
+    <h3>The hard part: three customers, three different reasons</h3>
+    <p>Supermetrics supplied three accounts whose warning signs look almost the same. All three
+    are losing health at a similar rate, all three renew soon. A system that just repeats the
+    warning back at you says the same unhelpful thing about all three. The useful answer is
+    what is <i>actually</i> going wrong at each one, and they are three completely different
+    problems needing three completely different responses:</p>
+    <div class="scroll">
+    <table>
+      <tr><th style="width:23%">Customer</th><th style="width:38%">What the platform worked out</th><th>What that means for the person who owns the account</th></tr>
+      <tr><td><b>Northwind Retail</b><br><span class="muted small">$84k</span></td>
+          <td>People have largely stopped using what they are paying for</td>
+          <td>Their team shrank and usage collapsed. Re-engage, or expect them to leave.</td></tr>
+      <tr><td><b>Bluefin Analytics</b><br><span class="muted small">$31k</span></td>
+          <td>The data connections they depend on have stopped working reliably</td>
+          <td>They still use it daily, but they no longer trust the numbers. This is ours to fix.</td></tr>
+      <tr><td><b>Verdant Foods</b><br><span class="muted small">$67k</span></td>
+          <td>The person who championed us internally has moved on</td>
+          <td>Nothing is broken and usage is fine, but nobody is left who knows how it works.</td></tr>
+    </table>
+    </div>
+    <p class="muted small">Same trigger shape, same falling health score, three different
+    answers, each with the specific evidence behind it. That is the difference between an alert
+    and something worth acting on.</p>
   </section>
 
   <!-- ── 2 ─────────────────────────────────────────────────────────────── -->
@@ -139,13 +164,13 @@
       <tr><th style="width:30%">Requirement</th><th style="width:28%">Where</th><th>The part that matters</th></tr>
       <tr><td>1 · Ingest a webhook trigger</td>
           <td><code>app.py</code>, <code>events.py</code></td>
-          <td>One path for every vendor. Each gets a normaliser, so a vendor changing their payload touches one function and no agent.</td></tr>
+          <td>Runs your supplied payload as given. One path for every vendor; each gets a normaliser, so a payload change touches one function and no agent.</td></tr>
       <tr><td>2 · LLM finds the churn driver and drafts an alert citing evidence</td>
           <td><code>renewal_risk/analysis.py</code></td>
           <td>Evidence is structured metric/value pairs, not prose. Every citation is checked against the real data in code; invented numbers get the answer discarded.</td></tr>
       <tr><td>3 · Write to Salesforce + Gainsight</td>
           <td><code>renewal_risk/agent.py</code>, <code>clients/</code></td>
-          <td>Idempotent, keyed off the event id. Redeliver the webhook and you still get exactly one task.</td></tr>
+          <td>Uses the objects and fields from your <code>mock_crm_write_examples</code>: Opportunity with <code>Renewal_Risk_Level__c</code> and <code>Risk_Driver__c</code>, Gainsight CSTA with <code>risk_flag</code> and <code>risk_summary</code>. Idempotent, keyed off the event id.</td></tr>
       <tr><td>4 · Route to the account owner in Slack</td>
           <td><code>renewal_risk/routing.py</code></td>
           <td>Rules live in YAML. The rule that fired is written to the trace, so "why this channel" is answerable without reading code.</td></tr>
@@ -164,9 +189,9 @@
     <div class="scroll">
     <table>
       <tr><th style="width:34%">Scenario</th><th>What it proves</th></tr>
-      <tr><td>Critical renewal risk</td><td>The main path. Driver named, evidence cited, owner tagged, exec channel.</td></tr>
-      <tr><td>The same webhook again</td><td>Vendors redeliver. One Salesforce task across both deliveries, not two.</td></tr>
-      <tr><td>Salesforce renewal trigger</td><td>Completely different payload shape, same agent. Contained in one normaliser.</td></tr>
+      <tr><td><b>Your sample payload, as given</b></td><td>Three near-identical triggers resolve to three distinct correct drivers, with the evidence for each. The redelivered <code>evt_1001</code> is deduped: no second CRM write, no second alert.</td></tr>
+      <tr><td>Our own webhook shape</td><td>A different payload shape for the same business fact. One normaliser, no agent change.</td></tr>
+      <tr><td>Salesforce renewal trigger</td><td>A third shape again. Vendor payload changes stay contained.</td></tr>
       <tr><td>Support ticket spike</td><td>A second agent, on the same bus, added without touching the first one.</td></tr>
       <tr><td>Malformed payload</td><td>Rejected at the boundary with a reason, dead-lettered. Not lost, not half-written.</td></tr>
       <tr><td>Unknown source</td><td>Refused before it can reach an agent.</td></tr>

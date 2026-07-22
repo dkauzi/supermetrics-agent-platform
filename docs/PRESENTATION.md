@@ -41,9 +41,9 @@ State the three things you optimised for, because these are your spine for the w
 
 Talk over the output. Do not read it aloud, narrate what matters:
 
-- **Scenario 1**, the brief's main path. Point at the Slack message: the driver is named, the evidence is specific numbers, and the account owner is tagged. *"That message is the deliverable. Everything else exists to make it trustworthy."*
-- **Scenario 2**, the same webhook again. *"Vendors redeliver. One Salesforce task across both deliveries, not two."*
-- **Scenario 3**, Salesforce payload, completely different shape, same agent. *"Vendor payload changes are contained in one normaliser function. No agent changes."*
+- **Scenario 1 is their own payload, run as given.** This is the one that matters. Three accounts, near-identical triggers, and the output is three *different* drivers with different evidence. Say it plainly: *"Your file is built to catch a system that just reformats the trigger. It caught mine. My first prompt called the usage-collapse account champion_loss because a contact had also changed role, so two accounts got the same answer. The discriminator turned out to be in the data: Northwind's automation stopped too, which one person leaving does not explain. Verdant's automation is fine and only the human work stopped. All three are now permanent eval cases."* Then point at the deduped redelivery: one CRM write, one alert.
+- **Scenario 2**, our own webhook shape. *"A different payload shape for the same business fact. One normaliser, no agent change."*
+- **Scenario 3**, Salesforce payload, a third shape again. *"Vendor payload changes stay contained."*
 - **Scenario 4**, a second agent on a different event. *"I added this by writing one file and one registry entry. Zero lines of the renewal agent changed. That's the test of whether an event bus is real or decorative."*
 - **Scenarios 5 and 6**, bad input. *"Rejected at the boundary with a reason, in the dead-letter queue. Not lost, not half-written."*
 
@@ -107,7 +107,7 @@ Open `docs/ARCHITECTURE.md`, show the diagram, do not narrate every box. Make th
 
 ## 6. Close (30 seconds)
 
-> "The honest summary: the vendor clients are mocks, and the BigQuery adapter hasn't run against a real dataset. Everything else you've seen actually executes: 74 tests, the eval gate, the self-audit, all green in CI on three Python versions. What I'd build next is the approval loop closing properly, so a Slack approve button writes back and feeds the calibration table."
+> "The honest summary: the vendor clients are mocks, and the BigQuery adapter hasn't run against a real dataset. Everything else you've seen actually executes: 81 tests, the eval gate, the self-audit, all green in CI on three Python versions. What I'd build next is the approval loop closing properly, so a Slack approve button writes back and feeds the calibration table."
 
 ---
 

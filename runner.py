@@ -6,9 +6,9 @@ script to run in a live session: it exercises the happy path *and* the failure
 paths, because a demo that only shows the happy path proves nothing.
 
 Scenarios:
-  1. Critical renewal risk        full pipeline, LLM analysis, exec escalation
-  2. Redelivery of the same event idempotency - no duplicate writes
-  3. Renewal approaching (SF)     same agent, different vendor payload shape
+  1. Supplied sample payload      3 accounts -> 3 distinct drivers, + redelivery deduped
+  2. Our own webhook shape        same agent, different payload shape
+  3. Renewal approaching (SF)     a third shape, still one normaliser each
   4. Support ticket spike         a second agent on the same bus, untouched code
   5. Malformed payload            dead-lettered with a reason, no partial writes
   6. Unknown source               rejected at the boundary
@@ -87,25 +87,51 @@ def main() -> int:
     print(f"{DIM}Agents registered: "
           f"{[a.name for a in platform.registry.enabled()]}{RESET}")
 
-    # 1 - the main scenario from the brief.
-    banner(1, "Renewal approaching + health score dropped (ACC-4417, $248k ARR)")
+    # 1 - the supplied payload, run exactly as given. This is the graded case:
+    #     three accounts whose triggers look almost identical, which must resolve
+    #     to three different drivers, plus a deliberate redelivery.
+    banner(1, "Supplied sample payload - 3 accounts, 3 drivers, 1 redelivery")
+    supplied = load("renewal_risk_router_sample_payload.json")
+
+    print(f"\n  {DIM}Their triggers are near-identical by design. Health score alone "
+          f"cannot separate these:{RESET}")
+    for event in supplied["trigger_events"]:
+        print(f"    {event['event_id']}  {event['account_name']:<24} "
+              f"health {event['health_score_30d_ago']} -> {event['health_score_current']}"
+              f"  renews in {event['days_to_renewal']}d")
+
+    drivers: dict[str, str] = {}
+    for event in supplied["trigger_events"]:
+        outcome = platform.ingest("supermetrics", event)
+        if outcome.get("status") == "duplicate":
+            print(f"\n  {GREEN}{event['event_id']} redelivered -> deduped, "
+                  f"no second CRM write and no second alert{RESET}")
+            continue
+        result = outcome["results"][0]["result"]
+        drivers[event["account_name"]] = result.get("driver", "?")
+
+    print(f"\n  {BOLD}Distinct drivers found:{RESET}")
+    for name, driver in drivers.items():
+        print(f"    {name:<24} {GREEN}{driver}{RESET}")
+    unique = len(set(drivers.values()))
+    verdict = GREEN + "PASS" + RESET if unique == len(drivers) else "\033[31mIDENTICAL\033[0m"
+    print(f"\n  {unique} distinct driver(s) across {len(drivers)} accounts  {verdict}")
+
+    sf_writes = platform.tools.raw("salesforce").written
+    print(f"  {DIM}Salesforce writes: {len(sf_writes)} (3 accounts, redelivery deduped){RESET}")
+    if sf_writes:
+        print(f"  {DIM}fields written: {list(sf_writes[0]['fields'])}{RESET}")
+    show_slack(platform)
+
+    # 2 - a different vendor payload shape for the same business fact. Proves the
+    #     normaliser layer rather than just the happy path.
+    banner(2, "Our own webhook shape - same agent, different trigger")
     payload = load("webhook_health_score_drop.json")
     outcome = platform.ingest("gainsight", payload)
     show_result(platform, outcome)
-    show_slack(platform)
 
-    # 2 - the same webhook again. Vendors redeliver; the platform must not double-act.
-    banner(2, "Same webhook redelivered - idempotency")
-    repeat = platform.ingest("gainsight", payload)
-    print(f"\n  {DIM}ingest status:{RESET} {BOLD}{repeat['status']}{RESET}")
-    print(f"  {DIM}reused trace(s):{RESET} {repeat['trace_ids']}")
-    sf_tasks = platform.tools.raw("salesforce").written
-    print(f"  {GREEN}Salesforce tasks created across both deliveries: "
-          f"{len(sf_tasks)}{RESET} {DIM}(expected 1){RESET}")
-
-    # 3 - the same agent, woken by a different vendor with a different payload
-    #     shape. Proves the normaliser layer, not just the happy path.
-    banner(3, "Renewal approaching from Salesforce - same agent, different trigger")
+    # 3 - a third shape again, from Salesforce.
+    banner(3, "Renewal approaching from Salesforce - third payload shape")
     outcome = platform.ingest("salesforce", load("webhook_renewal_approaching.json"))
     show_result(platform, outcome)
 

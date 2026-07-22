@@ -52,7 +52,7 @@ python cli.py replay <trace_id>      # re-run against current code to verify a f
 | Symptom | Likely cause | First check |
 |---|---|---|
 | All runs show `deterministic_fallback` | No API key, or every model in the chain failing | `GET /healthz` → model chain; trace detail → transport errors |
-| Alerts fire but nothing in Salesforce | Write step failed after analysis | `why` → look for the `salesforce.create_task` error and attempt count |
+| Alerts fire but nothing in Salesforce | Write step failed after analysis | `why` → look for the `salesforce.update_opportunity` error and attempt count |
 | Duplicate Slack alerts | Idempotency key not reaching the client | Confirm the vendor sends a stable `eventId`; content-hash fallback treats changed values as new events *by design* |
 | DLQ growing | Vendor changed payload shape | `python cli.py dlq` → reason field names the failure; fix the normaliser |
 | A driver keeps being marked wrong | Genuine model weakness | `GET /calibration` - below the review threshold it auto-flags for human review; add cases and revise the prompt |
