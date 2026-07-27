@@ -21,6 +21,7 @@ flowchart TB
     ING["<b>Cloud Run · ingress</b><br/>normalise · validate · dedupe<br/><i>never calls a model, so it always answers before the vendor times out</i>"]:::run
     PS(["<b>Pub/Sub · agent-events</b><br/><i>the decoupling point: agents subscribe, nothing is hardwired</i>"]):::bus
     DLQ(["Dead-letter queue<br/><i>malformed, or 5 failed attempts</i>"]):::bus
+    SCHED["Cloud Scheduler<br/><i>cron · platform self-audit + review sweep</i>"]:::obs
 
     subgraph workers["2 · Cloud Run agent workers · scale to zero · one revision each"]
         direction LR
@@ -54,17 +55,19 @@ flowchart TB
         T4[(outcomes<br/><i>human verdicts</i>)]:::store
     end
 
-    subgraph obs["6 · Observability · two systems, two questions"]
+    subgraph obs["6 · Observability · operator dashboard, tracing, analytics"]
         direction LR
+        DASH["Cloud Run · operator dashboard<br/><i>why · health · decisions · spend · tests</i>"]:::run
         CT["Cloud Trace<br/><i>OTel spans<br/>where did the time go</i>"]:::obs
-        LK["Looker Studio<br/><i>why did the agent do that</i>"]:::obs
         CM["Cloud Monitoring<br/><i>SLOs · spend · DLQ alerts</i>"]:::obs
+        LK["Looker Studio<br/><i>analyst joins:<br/>behaviour × revenue</i>"]:::obs
     end
 
     inbound ==>|webhooks| LB
     LB ==> ING
     ING ==>|validated event| PS
     ING -.->|rejected, with a reason| DLQ
+    SCHED ==>|scheduled event| PS
     PS ==>|fan-out by subscription| workers
     PS -.->|retries exhausted| DLQ
 
@@ -75,6 +78,8 @@ flowchart TB
 
     SLACK -.->|human verdict closes the loop| T4
     T4 -.->|calibration, read at analysis time| workers
+    bq --> DASH
     bq --> LK
     bq --> CM
     CT --> CM
+    CT -.->|cross-referenced by id| DASH
