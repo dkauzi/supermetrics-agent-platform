@@ -731,8 +731,43 @@ def test_every_endpoint_the_dashboard_calls_responds():
 
     with TestClient(app.app) as client:
         for path in ("/healthz", "/traces", "/registry", "/dead-letters",
-                     "/calibration", "/quality", "/tools", "/cost"):
+                     "/calibration", "/quality", "/tools", "/cost", "/slack",
+                     "/audit", "/decisions", "/tests"):
             assert client.get(path).status_code == 200, f"{path} is broken"
+
+
+def test_audit_endpoint_reports_every_check_the_agent_runs():
+    from fastapi.testclient import TestClient
+    import app
+    from agents.platform_qa.agent import CHECKS
+
+    with TestClient(app.app) as client:
+        body = client.get("/audit").json()
+
+    # The endpoint and the platform_qa agent read one catalogue, so the audit a
+    # reviewer sees on the dashboard is exactly the audit CI enforces.
+    assert body["check_count"] == len(CHECKS)
+    assert {c["check"] for c in body["checks"]} == {name for name, *_ in CHECKS}
+    for check in body["checks"]:
+        assert check["title"] and check["what"]
+        assert check["status"] in ("pass", "warn", "fail")
+    assert body["verdict"] in ("PASS", "WARN", "FAIL")
+
+
+def test_notify_owner_messages_the_owner_and_404s_on_unknown_agent():
+    from fastapi.testclient import TestClient
+    import app
+
+    with TestClient(app.app) as client:
+        assert client.post("/agents/does_not_exist/notify").status_code == 404
+
+        before = len(app.platform.tools.raw("slack").sent)
+        result = client.post("/agents/renewal_risk/notify").json()
+        after = len(app.platform.tools.raw("slack").sent)
+
+    assert after == before + 1                       # a real message was sent
+    assert result["notified"].startswith("@")        # to the owner's handle
+    assert result["agent"] == "renewal_risk"
 
 
 def test_healthz_reports_tracing_state_honestly():

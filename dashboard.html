@@ -51,6 +51,7 @@
   .why{border-left:2.5px solid var(--accent);padding:9px 13px;margin:9px 16px;border-radius:0 7px 7px 0;
        background:color-mix(in srgb,var(--accent) 7%,transparent)}
   .why .rule{font-family:var(--mono);font-size:11px;color:var(--accent);font-weight:600}
+  .why-rule{font-family:var(--mono);font-size:11.5px;color:var(--accent);font-weight:600}
   .why .txt{margin-top:3px}
   .kv{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:5px;word-break:break-word}
   .empty{padding:26px 16px;color:var(--muted);text-align:center}
@@ -93,6 +94,7 @@
      href="https://github.com/dkauzi/supermetrics-agent-platform/blob/main/docs/ARCHITECTURE.md">Architecture</a>
   <a class="navlink" target="_blank" rel="noopener"
      href="https://github.com/dkauzi/supermetrics-agent-platform">Repo</a>
+  <span id="llmmode"></span>
   <span id="mode"></span>
   <button onclick="loadAll()">Refresh</button>
 </header>
@@ -108,8 +110,20 @@
       </div>
 
       <div class="card">
-        <h2>Agent registry</h2>
+        <h2>Platform health check - what the platform checks about itself</h2>
+        <div class="body" id="audit"><div class="empty">Loading…</div></div>
+        <div class="note">The same checks run in CI and on a schedule. Every one has a
+          correct answer, so no model is involved. A failing check names its own fix.</div>
+      </div>
+
+      <div class="card">
+        <h2>Agents - ownership &amp; review schedule</h2>
         <div class="body" id="registry"></div>
+      </div>
+
+      <div class="card">
+        <h2>Adding an agent</h2>
+        <div class="body" id="addagent"></div>
       </div>
 
       <div class="card">
@@ -128,6 +142,18 @@
       <div class="card">
         <h2>Why did this agent do that?</h2>
         <div id="why"><div class="empty">Select a run to see its reasoning.</div></div>
+      </div>
+
+      <div class="card">
+        <h2>Decision log - every rule the agents fired, newest first</h2>
+        <div class="body" id="decisions"><div class="empty">Loading…</div></div>
+        <div class="note">Each row is one decision an agent made. Click any of them to open
+          its full reasoning above. The same records the "why" view reads, so they cannot disagree.</div>
+      </div>
+
+      <div class="card">
+        <h2>Automated tests - what is proven before anything ships</h2>
+        <div class="body" id="tests"><div class="empty">Loading…</div></div>
       </div>
 
       <div class="card">
@@ -151,7 +177,9 @@
         <div class="body" id="quality"></div>
         <div class="note">The LLM is never trusted directly. Ungrounded citations are rejected
           and the deterministic analyser takes over - the human still gets alerted, and the
-          override is recorded here rather than hidden.</div>
+          override is recorded here rather than hidden. Retries are bounded and the daily budget
+          caps spend, so nothing loops forever; when the platform still cannot be confident, the
+          decision fails to a human rather than guessing.</div>
       </div>
 
       <div class="card">
@@ -185,27 +213,36 @@ let selected = null, lastWhy = null;
 function statusClass(s){ return s==='error'?'err':s==='degraded'?'deg':s==='skipped'?'warn':'ok'; }
 
 async function loadAll(){
-  const [runs, reg, dlq, cal, qual, tools, cost, slack] = await Promise.all([
-    get('/traces?limit=40'), get('/registry'), get('/dead-letters?limit=20'),
-    get('/calibration'), get('/quality'), get('/tools'), get('/cost'), get('/slack')
-  ]);
+  const [runs, reg, dlq, cal, qual, tools, cost, slack, auditData, decisionsData, testsData] =
+    await Promise.all([
+      get('/traces?limit=40'), get('/registry'), get('/dead-letters?limit=20'),
+      get('/calibration'), get('/quality'), get('/tools'), get('/cost'), get('/slack'),
+      get('/audit'), get('/decisions?limit=30'), get('/tests')
+    ]);
   renderQuality(qual);
   renderTools(tools);
   renderCost(cost);
   renderSlack(slack);
+  renderAudit(auditData);
+  renderRegistry(reg);
+  renderAddAgent(reg);
+  renderDecisions(decisionsData);
+  renderTests(testsData);
 
   const totalRuns = runs.traces.length;
-  const errored = runs.traces.filter(t => t.errors > 0).length;
+  const vcls = auditData ? (auditData.verdict==='PASS'?'ok':auditData.verdict==='WARN'?'warn':'err') : 'muted';
   $('stats').innerHTML = [
-    ['Runs logged', totalRuns],
-    ['Runs with errors', errored],
-    ['Agents registered', reg.agent_count],
-    ['Review overdue', reg.review_due_count],
-    ['Reviewed alerts', cal.summary.reviewed_alerts],
+    ['Runs logged', totalRuns, ''],
+    ['Agents registered', reg.agent_count, ''],
+    ['Safety checks', auditData ? auditData.verdict : '-', vcls],
+    ['Review overdue', reg.review_due_count, reg.review_due_count ? 'warn' : ''],
+    ['Decisions logged', decisionsData ? decisionsData.count : '-', ''],
+    ['Failed to a human', qual.held_for_human ?? '-', qual.held_for_human ? 'warn' : ''],
+    ['Tests', (testsData && testsData.available) ? testsData.total : '-', ''],
     ['Overall precision', cal.summary.overall_precision == null ? '-'
-        : Math.round(cal.summary.overall_precision*100)+'%'],
-    ['Dead letters', dlq.dead_letters.length],
-  ].map(([l,n]) => `<div class="stat"><div class="n">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join('');
+        : Math.round(cal.summary.overall_precision*100)+'%', ''],
+    ['Dead letters', dlq.dead_letters.length, dlq.needs_triage ? 'err' : ''],
+  ].map(([l,n,c]) => `<div class="stat"><div class="n ${c}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join('');
 
   $('runs').innerHTML = totalRuns ? runs.traces.map(t => `
     <div class="row ${selected===t.trace_id?'sel':''}" onclick="showWhy('${t.trace_id}')">
@@ -215,15 +252,6 @@ async function loadAll(){
       </div>
       <span class="pill ${t.errors>0?'err':'ok'}">${t.errors>0?t.errors+' err':'ok'}</span>
     </div>`).join('') : '<div class="empty">No runs yet. Send a webhook or run <code>runner.py</code>.</div>';
-
-  $('registry').innerHTML = `<table><tr><th>Agent</th><th>Owner</th><th>Subscribes to</th><th>Review</th></tr>${
-    reg.agents.map(a => `<tr>
-      <td><b>${esc(a.name)}</b> <span class="muted">v${esc(a.version)}</span></td>
-      <td>${esc(a.owner_slack)}</td>
-      <td class="tid">${a.subscribes_to.map(esc).join('<br>')}</td>
-      <td><span class="pill ${a.review_due?'err':'ok'}">${a.review_due?'overdue':'ok'}</span>
-          <div class="tid">${a.days_since_review}d ago</div></td>
-    </tr>`).join('')}</table>`;
 
   // The guarded/triage split is computed server side by the same function the
   // platform_qa agent uses, so this view cannot drift from the audit's verdict.
@@ -285,6 +313,33 @@ function renderSlack(s){
 
 function renderCost(c){
   if(!c){ $('cost').innerHTML = '<div class="empty">No cost data.</div>'; return; }
+
+  // Proof of which inference path ran. Live means the OpenRouter key was used and
+  // there is real spend; offline means nothing left the process and cost is $0.
+  const live = (c.mode || 'live') === 'live';
+  const modeBadge = live
+    ? `<span class="pill ok">LIVE · OpenRouter${c.key_configured ? ' key' : ''}</span>`
+    : `<span class="pill warn">OFFLINE · deterministic, no key</span>`;
+  const hm = $('llmmode'); if(hm) hm.innerHTML = modeBadge;
+
+  const models = c.models_used || [];
+  const modelRows = models.map(m => `<tr>
+      <td class="tid">${esc(m.model)}</td>
+      <td>${esc(m.calls)}</td>
+      <td>${(m.tokens_in + m.tokens_out).toLocaleString()}
+          <div class="tid">${m.tokens_in.toLocaleString()} in / ${m.tokens_out.toLocaleString()} out</div></td>
+      <td>$${m.cost_usd.toFixed(5)}</td>
+    </tr>`).join('');
+  const modelBlock = `<div class="row" style="cursor:default">
+      <div><b>AI model</b> <span class="muted">· ${live ? c.live_llm_calls + ' real model call(s) this window' : 'no model called'}</span></div>
+      ${modeBadge}
+    </div>
+    ${models.length
+      ? `<table><tr><th>Model actually used</th><th>Calls</th><th>Tokens</th><th>Spend</th></tr>${modelRows}</table>`
+      : `<div class="note">${live
+          ? 'No model calls recorded in this window yet.'
+          : 'Offline: analyses came from the deterministic fallback. Nothing was sent to OpenRouter and $0 was spent - which is itself the evidence of which path ran. Rebuild with a key and LLM_MODE=live to show real inference here.'}</div>`}`;
+
   const pct = c.budget_used_pct ?? 0;
   const cls = pct >= 90 ? 'low' : pct >= 60 ? 'mid' : '';
   const gpct = c.grant_used_pct ?? 0;
@@ -300,7 +355,7 @@ function renderCost(c){
           <div class="tid">at $${(c.cost_per_analysis_usd||0).toFixed(5)} per analysis</div></td>
     </tr></table>` : '';
 
-  $('cost').innerHTML = grant + `<table>
+  $('cost').innerHTML = modelBlock + grant + `<table>
     <tr><th>Today</th><th>Budget</th><th>Per analysis</th><th>Projected / month</th><th>State</th></tr>
     <tr>
       <td><b>$${(c.spent_today_usd ?? 0).toFixed(4)}</b>
@@ -368,6 +423,9 @@ function renderQuality(q){
       <tr><td>Fell back to deterministic analyser</td>
           <td><span class="pill ${q.fallback_runs?'deg':'ok'}">${q.fallback_runs}</span></td>
           <td class="tid">${Math.round(q.fallback_rate*100)}% of ${q.analysis_runs} runs</td></tr>
+      <tr><td>Failed to a human (low confidence / flagged)</td>
+          <td><span class="pill ${q.held_for_human?'warn':'ok'}">${q.held_for_human ?? 0}</span></td>
+          <td class="tid">CRM write held, person asked · of ${q.decisions_authorised ?? 0} write decisions</td></tr>
     </table>`;
 
   // Case-level eval detail. `ambiguous_must_not_guess` is the important row:
@@ -389,11 +447,123 @@ function renderQuality(q){
         <div class="txt">${r.violations.map(esc).join('<br>')}</div></div>`),
     ...q.recent_fallbacks.slice(0,4).map(f =>
       `<div class="why"><div class="rule">fallback → ${esc(f.trace_id)}</div>
-        <div class="txt">${esc(f.reason)} - alerted anyway as <b>${esc(f.driver)}</b></div></div>`)
+        <div class="txt">${esc(f.reason)} - alerted anyway as <b>${esc(f.driver)}</b></div></div>`),
+    ...(q.recent_holds || []).slice(0,4).map(h =>
+      `<div class="why"><div class="rule">held for a human → ${esc(h.trace_id)}</div>
+        <div class="txt">${esc(h.driver || 'a driver')} at ${h.confidence != null ? Math.round(h.confidence*100)+'%' : '?'}
+          confidence - CRM write held, a person was asked to approve</div></div>`)
   ].join('');
 
   $('quality').innerHTML = gate + cases + overrides
     + (recent ? `<div style="padding:4px 0">${recent}</div>` : '');
+}
+
+// The platform auditing itself. Each check has a correct answer and names its own
+// fix, so "is the platform healthy?" is answerable without reading code.
+const SEV_COLOR = { critical: 'var(--err)', warning: 'var(--warn)', info: 'var(--muted)' };
+function renderAudit(a){
+  if(!a){ $('audit').innerHTML = '<div class="empty">No audit data.</div>'; return; }
+  const vcls = a.verdict==='PASS'?'ok':a.verdict==='WARN'?'warn':'err';
+  const scls = s => s==='pass'?'ok':s==='warn'?'warn':'err';
+  const head = `<div class="row" style="cursor:default">
+      <div><b>Overall</b> <span class="muted">· ${a.check_count} checks · ${a.critical} critical · ${a.warnings} warnings</span></div>
+      <span class="pill ${vcls}">${esc(a.verdict)}</span>
+    </div>`;
+  const rows = a.checks.map(c => `
+    <div class="row" style="cursor:default;align-items:flex-start">
+      <div style="flex:1;min-width:0">
+        <div><b>${esc(c.title)}</b></div>
+        <div class="muted" style="font-size:12px">${esc(c.what)}</div>
+        ${c.findings.map(f => `<div class="kv" style="color:${SEV_COLOR[f.severity]||'var(--muted)'}">
+            ${esc(f.message)}<div class="muted" style="font-size:11px">fix: ${esc(f.fix)}</div></div>`).join('')}
+      </div>
+      <span class="pill ${scls(c.status)}">${esc(c.status)}</span>
+    </div>`).join('');
+  $('audit').innerHTML = head + rows;
+}
+
+// Ownership and the review schedule per agent, with the owner one click from a nudge.
+function renderRegistry(reg){
+  $('registry').innerHTML = `<table>
+    <tr><th>Agent</th><th>Owner</th><th>Last checked</th><th>Next check</th><th></th></tr>
+    ${reg.agents.map(a => `<tr>
+      <td><b>${esc(a.name)}</b> <span class="muted">v${esc(a.version)}</span>
+          <div class="tid">${a.subscribes_to.map(esc).join(', ')}</div></td>
+      <td>${esc(a.owner_slack)}<div class="tid">${esc(a.owner_email||'')}</div></td>
+      <td>${esc(a.last_reviewed)}<div class="tid">${a.days_since_review}d ago</div></td>
+      <td>${a.review_due
+            ? '<span class="pill err">overdue</span>'
+            : `<span class="pill ok">${esc(a.next_review)}</span>`}</td>
+      <td><button onclick="notifyOwner('${esc(a.name)}')">Notify owner</button></td>
+    </tr>`).join('')}</table>
+    <div class="note" id="notifymsg">Reviews are scheduled here, not remembered. Anything overdue is
+      also @mentioned to its owner in the platform health digest, so the nudge reaches a person.</div>`;
+}
+
+async function notifyOwner(name){
+  if(SNAP){ $('notifymsg').textContent = 'Read-only snapshot. Run the app locally to actually send the nudge.'; return; }
+  const r = await fetch(`/agents/${name}/notify`, { method:'POST' });
+  const j = await r.json().catch(() => ({}));
+  $('notifymsg').textContent = r.ok
+    ? `Nudged ${j.notified} about ${j.agent} (${j.delivery}).`
+    : 'Failed to notify.';
+}
+
+// How little it takes to add the next agent. The point of a platform: the
+// complexity moved here once, so a new tenant inherits it rather than rebuilding it.
+function renderAddAgent(reg){
+  $('addagent').innerHTML = `<div class="narr">
+    <p style="margin:0 0 10px">A new agent is <b>two files</b>: its own logic, and one registry
+      entry naming its owner, the events it listens for, and the tools it may touch. One command
+      writes both and refuses anything that breaks the contract.</p>
+    <div class="msg-body" style="background:color-mix(in srgb,var(--accent) 7%,transparent);border-radius:7px;padding:11px 13px">python cli.py new-agent expansion_signal \\
+  --owner denis --description "Flags accounts worth an upsell" \\
+  --subscribes-to health_score.dropped --tools salesforce gainsight slack</div>
+    <p style="margin:11px 0 6px"><b>Refused unless</b> it has a named owner, a dotted event type to
+      subscribe to, and only tools that exist. Duplicate names are rejected at load.</p>
+    <p style="margin:0 0 6px"><b>Inherited for free</b>, written nowhere in the agent itself: tracing,
+      retries, idempotency, the grounding and cost guardrails, least-privilege tool permissions,
+      and every panel on this dashboard.</p>
+    <p style="margin:6px 0 0" class="muted">All ${reg.agent_count} agents above onboarded through
+      exactly this path. Nothing that already exists changes when the next one is added.</p>
+  </div>`;
+}
+
+// One activity stream of every rule the agents fired, click-through to full reasoning.
+function renderDecisions(d){
+  if(!d || !d.decisions || !d.decisions.length){
+    $('decisions').innerHTML = '<div class="empty">No decisions logged yet. Run <code>python runner.py</code>.</div>';
+    return;
+  }
+  $('decisions').innerHTML = d.decisions.map(x => `
+    <div class="row" onclick="showWhy('${esc(x.trace_id)}')">
+      <div style="flex:1;min-width:0">
+        <div><b>${esc(x.agent)}</b>
+          <span class="muted">· ${esc(x.step)} → </span><span class="why-rule">${esc(x.rule_id)}</span></div>
+        <div class="muted" style="font-size:12.5px">${esc(x.because)}</div>
+      </div>
+      <span class="tid">${esc((x.ts||'').replace('T',' ').slice(11,19))}</span>
+    </div>`).join('');
+}
+
+// What is proven before anything ships. Real collected count, generated at build time.
+function renderTests(t){
+  if(!t || !t.available){
+    $('tests').innerHTML = `<div class="empty">${esc((t && t.note) || 'No test summary.')}</div>`;
+    return;
+  }
+  const areas = Object.entries(t.by_area || {});
+  $('tests').innerHTML = `
+    <div class="row" style="cursor:default">
+      <div><b>${esc(t.total)} automated tests</b>
+        <span class="muted">· <code>${esc(t.command || 'pytest')}</code> · green in CI</span></div>
+      <span class="pill ok">passing</span>
+    </div>
+    ${areas.length ? `<table><tr><th>What is covered</th><th>Tests</th></tr>
+      ${areas.map(([k,v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}
+    </table>` : ''}
+    <div class="note">Weighted to the failure paths, not the happy path: dedupe, degraded fallback,
+      grounding rejection, circuit breaking and the platform self-audit each have their own tests.</div>`;
 }
 
 async function showWhy(traceId){

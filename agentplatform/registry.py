@@ -11,7 +11,7 @@ not hardwired calls between agents.
 from __future__ import annotations
 
 import importlib
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 
@@ -59,6 +59,12 @@ class AgentEntry(BaseModel):
         """Surfaced on the dashboard so reviews are scheduled, not remembered."""
         return self.days_since_review > self.review_interval_days
 
+    @property
+    def next_review(self) -> date:
+        """The date the next review falls due, so the dashboard can show *when*,
+        not just whether it is overdue."""
+        return self.last_reviewed + timedelta(days=self.review_interval_days)
+
     def load_handler(self) -> Callable[..., Any]:
         module_path, func_name = self.handler.split(":", 1)
         try:
@@ -82,6 +88,7 @@ class AgentEntry(BaseModel):
             "version": self.version,
             "description": " ".join(self.description.split()),
             "owner": self.owner,
+            "owner_email": self.owner_email,
             "owner_slack": self.owner_slack,
             "team": self.team,
             "subscribes_to": self.subscribes_to,
@@ -89,6 +96,8 @@ class AgentEntry(BaseModel):
             "writes_golden_record": self.writes_golden_record,
             "last_reviewed": self.last_reviewed.isoformat(),
             "days_since_review": self.days_since_review,
+            "review_interval_days": self.review_interval_days,
+            "next_review": self.next_review.isoformat(),
             "review_due": self.review_due,
             "enabled": self.enabled,
         }

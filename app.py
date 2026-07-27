@@ -22,12 +22,12 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from agentplatform import build_platform
-from agentplatform.config import data_dir
+from agentplatform.config import data_dir, llm_mode, openrouter_api_key
 from agentplatform.events import UnknownEventSource
 from agentplatform.feedback import Calibration, record_outcome
 from agentplatform import telemetry
 from agentplatform.limits import spend_report
-from agents.platform_qa.agent import is_guarded_rejection
+from agents.platform_qa.agent import CHECKS, CRITICAL, WARNING, is_guarded_rejection
 
 app = FastAPI(title="Supermetrics Agent Platform", version="1.0.0")
 platform = build_platform()
@@ -49,6 +49,12 @@ def healthz() -> dict[str, Any]:
         "agents_review_due": len(platform.registry.review_due()),
         "event_types": platform.registry.event_types(),
         "llm_model_chain": platform.config.get("llm.model_chain"),
+        # Live vs offline, and whether a key is even configured. This is how the
+        # dashboard proves the real model was used rather than the deterministic
+        # fallback: live + a key present + real spend on /cost, versus offline
+        # where nothing leaves the process and cost stays zero.
+        "llm_mode": llm_mode(),
+        "llm_key_configured": openrouter_api_key() is not None,
         # Reported honestly: false when the SDK is absent or no collector is
         # configured, rather than implying spans are going somewhere they are not.
         "otel_tracing": telemetry.enabled(),
@@ -232,6 +238,32 @@ def cost() -> dict[str, Any]:
     ]
     report["throttled_runs"] = len(throttled)
     report["recent_throttled"] = throttled[:8]
+
+    # Proof of live inference. Every real model call records the model, its token
+    # counts and its cost. In offline mode nothing calls the model, so there are
+    # no rows here and spend stays $0 - which is itself the evidence of which path
+    # ran. In live mode this names the actual OpenRouter model and its real spend.
+    llm_steps = platform.warehouse.steps_named("llm_cost", limit=500)
+    models: dict[str, dict[str, Any]] = {}
+    tokens_in = tokens_out = 0
+    for step in llm_steps:
+        detail = step["detail"] or {}
+        model = detail.get("model", "unknown")
+        agg = models.setdefault(model, {"model": model, "calls": 0,
+                                        "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0})
+        agg["calls"] += 1
+        agg["tokens_in"] += detail.get("tokens_in", 0) or 0
+        agg["tokens_out"] += detail.get("tokens_out", 0) or 0
+        agg["cost_usd"] = round(agg["cost_usd"] + (detail.get("cost_usd", 0) or 0), 6)
+        tokens_in += detail.get("tokens_in", 0) or 0
+        tokens_out += detail.get("tokens_out", 0) or 0
+
+    report["mode"] = llm_mode()
+    report["key_configured"] = openrouter_api_key() is not None
+    report["live_llm_calls"] = len(llm_steps)
+    report["models_used"] = sorted(models.values(), key=lambda m: -m["calls"])
+    report["tokens_in_total"] = tokens_in
+    report["tokens_out_total"] = tokens_out
     return report
 
 
@@ -272,6 +304,24 @@ def quality() -> dict[str, Any]:
         for step in verifications if not (step["detail"] or {}).get("passed", True)
     ]
 
+    # When a decision cannot be made safely, it fails to a human rather than to
+    # silence or an endless retry: low confidence or a flagged driver holds the
+    # CRM write and asks a person. Surfaced so "how often does it defer to us?" is
+    # a number, not a claim.
+    authorities = platform.warehouse.steps_named("write_authority", limit=500)
+    holds = []
+    for step in authorities:
+        detail = step["detail"] or {}
+        if detail.get("rule_id") != "held_for_human":
+            continue
+        inputs = detail.get("decision_inputs") or {}
+        holds.append({
+            "trace_id": step["trace_id"], "ts": step["ts"],
+            "confidence": inputs.get("confidence"), "driver": inputs.get("driver"),
+            "because": detail.get("because"),
+            "why_url": f"/traces/{step['trace_id']}/why",
+        })
+
     total = len(analyses)
     return {
         "eval": last_eval,
@@ -281,8 +331,11 @@ def quality() -> dict[str, Any]:
         "fallback_rate": round(len(fallbacks) / total, 3) if total else 0.0,
         "grounding_checks": len(verifications),
         "grounding_rejections": len(caught),
+        "held_for_human": len(holds),
+        "decisions_authorised": len(authorities),
         "recent_fallbacks": fallbacks[:10],
         "recent_grounding_rejections": caught[:10],
+        "recent_holds": holds[:8],
     }
 
 
@@ -312,6 +365,121 @@ def calibration(agent: str = "renewal_risk") -> dict[str, Any]:
     """Measured precision per churn driver, from human verdicts."""
     calib = Calibration(platform.warehouse, platform.config, agent)
     return {"summary": calib.summary(), "drivers": calib.table()}
+
+
+@app.get("/audit")
+def audit() -> dict[str, Any]:
+    """The platform's own health check, in plain language.
+
+    Runs the same checks the platform_qa agent enforces in CI and on a schedule:
+    every agent owned, reviews on time, nothing stuck, the quality gate green,
+    the model actually answering, precision holding, runs clean. Each check
+    carries what it verifies and, when it fails, how to fix it, so "is the
+    platform healthy?" is answerable without reading code or a log. The checks
+    come from one catalogue the agent and this endpoint share, so the audit you
+    read here is the audit CI runs.
+    """
+    results: list[dict[str, Any]] = []
+    counts = {"critical": 0, "warning": 0, "info": 0}
+    rank = {"pass": 0, "warn": 1, "fail": 2}
+    worst = "pass"
+
+    for name, title, what, run_check in CHECKS:
+        findings = [f.as_dict() for f in
+                    run_check(platform.registry, platform.warehouse, platform.config)]
+        for finding in findings:
+            counts[finding["severity"]] = counts.get(finding["severity"], 0) + 1
+        if any(f["severity"] == CRITICAL for f in findings):
+            status = "fail"
+        elif any(f["severity"] == WARNING for f in findings):
+            status = "warn"
+        else:
+            status = "pass"           # info-only findings (guarded rejections) still pass
+        if rank[status] > rank[worst]:
+            worst = status
+        results.append({"check": name, "title": title, "what": what,
+                        "status": status, "findings": findings})
+
+    return {
+        "verdict": {"pass": "PASS", "warn": "WARN", "fail": "FAIL"}[worst],
+        "check_count": len(CHECKS),
+        "critical": counts["critical"],
+        "warnings": counts["warning"],
+        "info": counts["info"],
+        "checks": results,
+    }
+
+
+@app.get("/decisions")
+def decisions(runs: int = 15, limit: int = 40) -> dict[str, Any]:
+    """A live feed of the actual decisions the agents made, newest first.
+
+    Each time an agent applies a rule it records the rule, the plain reason, and
+    the values it matched on. This flattens those across recent runs into one
+    activity stream: what the agents are deciding right now, each row a click
+    away from that run's full reasoning. Same decision rows the "why" view reads,
+    so the feed cannot disagree with the detail.
+    """
+    feed: list[dict[str, Any]] = []
+    for run in platform.warehouse.recent_traces(runs):
+        for step in platform.warehouse.steps_for_trace(run["trace_id"]):
+            detail = step.get("detail") or {}
+            if "rule_id" not in detail:
+                continue
+            feed.append({
+                "ts": step["ts"],
+                "agent": step["agent"],
+                "trace_id": step["trace_id"],
+                "step": step["step"],
+                "rule_id": detail["rule_id"],
+                "because": detail.get("because"),
+                "inputs": detail.get("decision_inputs", {}),
+                "why_url": f"/traces/{step['trace_id']}/why",
+            })
+    feed.sort(key=lambda row: row["ts"], reverse=True)
+    return {"count": len(feed), "decisions": feed[:limit]}
+
+
+@app.get("/tests")
+def tests() -> dict[str, Any]:
+    """The automated test suite at a glance.
+
+    Written by scripts/build_snapshot.py so the dashboard can show what is
+    actually covered rather than claim it in prose. Absent until that script has
+    run, and it says so rather than inventing a number.
+    """
+    summary = data_dir() / "test_summary.json"
+    if not summary.exists():
+        return {"available": False,
+                "note": "Generated by scripts/build_snapshot.py."}
+    return {"available": True, **json.loads(summary.read_text())}
+
+
+@app.post("/agents/{name}/notify")
+def notify_owner(name: str) -> dict[str, Any]:
+    """Nudge an agent's owner in Slack that a review is due.
+
+    The registry already knows who owns each agent and when its next review
+    falls. This turns that into an actual message to that person, rather than a
+    date on a dashboard nobody is watching. Mocked like every vendor here:
+    captured unless SLACK_WEBHOOK_URL is set, in which case it really posts.
+    """
+    entry = platform.registry.get(name)
+    if entry is None:
+        raise HTTPException(status_code=404, detail=f"no agent named '{name}'")
+
+    when = "overdue" if entry.review_due else f"due {entry.next_review.isoformat()}"
+    text = (f"{entry.owner_slack} review nudge for *{entry.name}*: last checked "
+            f"{entry.days_since_review} days ago, next review {when}. "
+            f"Owner {entry.owner} ({entry.owner_email}).")
+    message = platform.tools.raw("slack").execute(
+        "post_message", {"channel": entry.owner_slack, "text": text})
+    return {
+        "agent": entry.name,
+        "notified": entry.owner_slack,
+        "delivery": message.get("delivery", "captured"),
+        "text": text,
+    }
 
 
 @app.post("/feedback")

@@ -104,6 +104,10 @@
   </div>
   <p class="muted small">Nothing is deployed, per the brief. The dashboard is a read-only
   snapshot of a real local run, so you can see it without cloning anything.</p>
+  <p class="muted small">On it: a plain-English <b>"why did it do that"</b> for any run, a live
+  <b>decision log</b>, a <b>platform health check</b>, a per-agent <b>review schedule</b> that can
+  nudge the owner in Slack, <b>spend against the $50</b> with the exact model used, and the
+  <b>test suite</b>. It opens on a real run against the supplied payload.</p>
 
   <!-- ── 1 ─────────────────────────────────────────────────────────────── -->
   <section>
@@ -336,8 +340,8 @@ cp .env.example .env          # optional: add OPENROUTER_API_KEY
   <!-- ── 8b ────────────────────────────────────────────────────────────── -->
   <section>
     <span class="num">08 · Doing the job</span>
-    <h2>Every responsibility in the role, and the command that shows it</h2>
-    <p>The job description lists what this person owns day to day. Each line below is a real
+    <h2>What running this platform involves, and the command that shows it</h2>
+    <p>These are the things owning this platform involves day to day. Each line below is a real
     thing you can run against this repo, not a claim.</p>
 
     <div class="scroll">
@@ -366,14 +370,14 @@ cp .env.example .env          # optional: add OPENROUTER_API_KEY
 
       <tr><td><b>Shared functions, fixed once</b></td>
           <td>No agent implements retry, cost accounting, schema validation or grounding itself. When two definitions of "grounded" drifted apart, that was a bug, and it was fixed by deleting one.</td>
-          <td><code>python -m pytest -q</code><br><span class="muted small">81 tests, weighted to failure paths</span></td></tr>
+          <td><code>python -m pytest -q</code><br><span class="muted small">91 tests, weighted to failure paths</span></td></tr>
 
       <tr><td><b>Observability: every run logged and queryable</b></td>
-          <td>One trace per run, one row per step, rendered for two readers: plain English for whoever is asking, rules and values for whoever is fixing. Same trace, so they cannot disagree.</td>
+          <td>One trace per run, one row per step, rendered for two readers: plain English for whoever is asking, rules and values for whoever is fixing. Same trace, so they cannot disagree. The dashboard also carries a live decision log of every rule the agents fired.</td>
           <td><code>python cli.py why &lt;trace_id&gt;</code><br><code>curl localhost:8000/traces</code></td></tr>
 
       <tr><td><b>Monitor the agents</b><br><span class="muted small">catch issues fast</span></td>
-          <td>A QA agent audits the platform itself: unowned agents, overdue reviews, dead letters, a failing eval gate, open circuits. It has no LLM, deliberately, because every check has a correct answer. Non-zero exit, so it doubles as a CI gate.</td>
+          <td>A QA agent audits the platform itself: unowned agents, overdue reviews, dead letters, a failing eval gate, open circuits. It has no LLM, deliberately, because every check has a correct answer. Non-zero exit, so it doubles as a CI gate, and the same result is a live panel on the dashboard.</td>
           <td><code>python cli.py audit</code><br><span class="muted small">exit 0 = no criticals</span></td></tr>
 
       <tr><td><b>Data quality and write authority on the Golden Record</b></td>
@@ -421,10 +425,11 @@ cp .env.example .env          # optional: add OPENROUTER_API_KEY
     the platform where it is written once and tested once.</div>
 
     <h3>The platform audits itself</h3>
-    <p>"Monitor the agents" is in the job description, so monitoring is an agent too - one that
+    <p>Monitoring is part of running this, so monitoring is an agent too - one that
     checks the platform rather than a customer. It runs on the same bus, is traced like any
     other run, and has <b>no LLM</b>: every check it performs has a correct answer, so a model
-    there would make a reliable result probabilistic and bill for it.</p>
+    there would make a reliable result probabilistic and bill for it. The same audit is a live
+    panel on the dashboard, and an overdue agent is nudged to its owner in Slack.</p>
     <pre><code>$ python cli.py audit
 
 Platform audit: WARN  (0 critical, 2 warnings)
@@ -472,6 +477,11 @@ Platform audit: WARN  (0 critical, 2 warnings)
     a live golden-eval sweep across all cases is about twelve. The platform stops paying for
     the model at 90% of the daily budget and routes runs to a human rather than either
     overspending or silently dropping alerts.</p>
+    <p>The panel also shows whether each run was <b>live or offline</b> and names the <b>exact
+    OpenRouter model, the token counts and the real dollars</b> spent, so which inference path
+    ran is visible rather than asserted: live shows real spend on a named model, offline stays
+    at $0 because nothing leaves the process. Retries are bounded and the budget caps spend, so
+    nothing loops forever; when confidence is still too low, the decision fails to a human.</p>
     <div class="say"><b>Where the model is deliberately not used</b>
     Severity, routing, spend limits, grounding checks and the whole QA agent are
     deterministic. Every one of them has a correct answer, so a model there would turn a
@@ -490,7 +500,7 @@ Platform audit: WARN  (0 critical, 2 warnings)
       <li>Pseudonymising identifiers before the model call is data <b>minimisation, not
       anonymisation</b>.</li>
     </ul>
-    <p class="muted small">Everything else here executes: <b>89 tests</b>, the golden eval gate,
+    <p class="muted small">Everything else here executes: <b>91 tests</b>, the golden eval gate,
     and the platform's own self-audit, all green in CI on three Python versions.</p>
   </section>
 

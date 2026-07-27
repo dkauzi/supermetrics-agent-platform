@@ -183,23 +183,46 @@ def check_run_errors(warehouse) -> list[Finding]:
     )]
 
 
+# Every check paired with the plain-English description the dashboard shows, so
+# "what the platform checks" has exactly one definition that both this agent and
+# the /audit endpoint read from. Each fn takes a uniform (registry, warehouse,
+# config) signature and returns only the findings for problems it found; a check
+# with no findings passed.
+CHECKS: tuple[tuple[str, str, str, Any], ...] = (
+    ("ownership", "Every agent has an owner",
+     "Each agent names an owner and a Slack handle to page. An unowned agent is "
+     "an outage with nobody to call.",
+     lambda reg, wh, cfg: check_ownership(reg)),
+    ("review_cadence", "Agents reviewed on schedule",
+     "No agent has gone longer than its review interval without a human checking it.",
+     lambda reg, wh, cfg: check_review_cadence(reg)),
+    ("dead_letters", "Nothing stuck unprocessed",
+     "Every incoming event either flowed through or was refused on purpose. "
+     "Nothing failed silently.",
+     lambda reg, wh, cfg: check_dead_letters(wh)),
+    ("eval_gate", "Quality gate is green",
+     "The current AI prompt still passes its regression set of known-answer cases.",
+     lambda reg, wh, cfg: check_eval_gate()),
+    ("fallback_rate", "The model is answering, not quietly failing",
+     "Analyses are being handled by the model rather than repeatedly dropping to "
+     "the backup rules, which would mean the model or a vendor is degrading.",
+     lambda reg, wh, cfg: check_fallback_rate(wh)),
+    ("driver_precision", "Predictions stay accurate over time",
+     "No churn reason has drifted below its accuracy floor, judged from human verdicts.",
+     lambda reg, wh, cfg: check_driver_precision(wh, cfg)),
+    ("run_errors", "Recent runs are clean",
+     "The most recent runs completed without step-level errors.",
+     lambda reg, wh, cfg: check_run_errors(wh)),
+)
+
+
 def handle(ctx) -> dict[str, Any]:
     trace = ctx.trace
     findings: list[Finding] = []
 
-    checks = (
-        ("ownership", lambda: check_ownership(ctx.registry)),
-        ("review_cadence", lambda: check_review_cadence(ctx.registry)),
-        ("dead_letters", lambda: check_dead_letters(ctx.warehouse)),
-        ("eval_gate", check_eval_gate),
-        ("fallback_rate", lambda: check_fallback_rate(ctx.warehouse)),
-        ("driver_precision", lambda: check_driver_precision(ctx.warehouse, ctx.config)),
-        ("run_errors", lambda: check_run_errors(ctx.warehouse)),
-    )
-
-    for name, check in checks:
+    for name, _title, _what, run_check in CHECKS:
         with trace.step(f"check_{name}") as step:
-            results = check()
+            results = run_check(ctx.registry, ctx.warehouse, ctx.config)
             findings.extend(results)
             step.set(findings=len(results),
                      severities=[f.severity for f in results])
@@ -214,13 +237,13 @@ def handle(ctx) -> dict[str, Any]:
     trace.decision(
         "platform_health", f"audit_{verdict.lower()}",
         f"Platform audit {verdict}: {len(criticals)} critical, {len(warnings)} warnings, "
-        f"{len(infos)} informational across {len(checks)} checks",
+        f"{len(infos)} informational across {len(CHECKS)} checks",
         critical=len(criticals), warnings=len(warnings),
-        info=len(infos), checks=len(checks),
+        info=len(infos), checks=len(CHECKS),
     )
 
     lines = [f"*Platform audit: {verdict}*",
-             f"{len(checks)} checks · {len(criticals)} critical · {len(warnings)} warnings", ""]
+             f"{len(CHECKS)} checks · {len(criticals)} critical · {len(warnings)} warnings", ""]
     for finding in criticals + warnings + infos:
         icon = {CRITICAL: ":red_circle:", WARNING: ":warning:"}.get(
             finding.severity, ":information_source:")
@@ -228,6 +251,18 @@ def handle(ctx) -> dict[str, Any]:
         lines.append(f"     _fix:_ {finding.fix}")
     if not findings:
         lines.append(":white_check_mark: Every agent owned, reviewed, and running clean.")
+
+    # Ping the owner of anything overdue directly, so the nudge reaches the person
+    # who can act on it instead of only landing in a shared channel.
+    overdue = ctx.registry.review_due()
+    if overdue:
+        lines.append("")
+        for entry in overdue:
+            lines.append(
+                f"{entry.owner_slack} *{entry.name}* is due a review "
+                f"(last checked {entry.days_since_review} days ago)."
+            )
+
     lines += ["", f"_Trace: {trace.trace_id}_"]
 
     with trace.step("notify_slack") as step:

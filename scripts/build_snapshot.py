@@ -41,10 +41,13 @@ def capture(client) -> dict:
     }
 
     for path in ("/traces", "/registry", "/dead-letters", "/calibration",
-                 "/quality", "/tools", "/cost"):
+                 "/quality", "/tools", "/cost", "/slack",
+                 "/audit", "/decisions?limit=30", "/tests"):
         response = client.get(path)
         response.raise_for_status()
-        snapshot[path] = response.json()
+        # Store under the path without its query string, matching how the page
+        # keys its lookups (get('/decisions?limit=30') resolves to '/decisions').
+        snapshot[path.split("?")[0]] = response.json()
 
     # Per-trace detail, so clicking a run in the published page works.
     for run in snapshot["/traces"]["traces"]:
@@ -53,6 +56,50 @@ def capture(client) -> dict:
             snapshot[path] = client.get(path).json()
 
     return snapshot
+
+
+def write_test_summary() -> None:
+    """Collect the test suite and record what it covers, so /tests and the
+    dashboard show a real, current number rather than a claim in prose.
+
+    Collection only (no execution): fast, deterministic, and it imports the same
+    modules the suite does, so a broken import would surface here too.
+    """
+    import subprocess
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q"],
+        cwd=ROOT, capture_output=True, text=True,
+    )
+    ids = [line.strip() for line in proc.stdout.splitlines() if "::" in line]
+
+    # First-match bucketing, so the area counts always sum to the total.
+    buckets = {
+        "Failure & resilience": ("fail", "degrade", "fallback", "circuit", "retry",
+                                 "dead_letter", "dlq", "unavailable", "outage"),
+        "Idempotency & dedupe": ("idempot", "dedupe", "duplicate", "concurren", "redeliver"),
+        "Grounding & verification": ("ground", "verif", "halluc", "evidence"),
+        "Golden eval & quality": ("eval", "golden", "consisten"),
+        "Registry & onboarding": ("registr", "onboard", "scaffold", "owner", "new_agent"),
+        "Platform self-audit": ("audit", "platform_qa", "health"),
+        "Cost & limits": ("cost", "budget", "spend", "limit", "throttle"),
+        "Severity & routing": ("severity", "sever", "rout", "channel"),
+        "Privacy & PII": ("privacy", "pii", "pseudonym", "minimis"),
+    }
+    by_area: dict[str, int] = {}
+    for test_id in ids:
+        name = test_id.lower()
+        area = next((a for a, keys in buckets.items() if any(k in name for k in keys)), "Other")
+        by_area[area] = by_area.get(area, 0) + 1
+
+    summary = {
+        "total": len(ids),
+        "command": "pytest",
+        "by_area": dict(sorted(by_area.items(), key=lambda kv: kv[1], reverse=True)),
+        "generated_at": datetime.now(timezone.utc).strftime("%d %b %Y"),
+    }
+    (data_dir() / "test_summary.json").write_text(json.dumps(summary, indent=1))
+    print(f"Test summary: {summary['total']} tests across {len(by_area)} areas")
 
 
 def main() -> int:
@@ -82,6 +129,9 @@ def main() -> int:
         record_outcome(platform.warehouse, run["trace_id"], "renewal_risk",
                        "ACC-4417", "adoption_decline", "critical",
                        "correct" if index % 2 == 0 else "wrong", reviewer="demo")
+
+    print("Collecting the test suite...")
+    write_test_summary()
 
     import app
     print("Capturing API responses...")
