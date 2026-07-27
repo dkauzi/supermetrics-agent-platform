@@ -95,6 +95,10 @@ docker compose up --build     # platform on :8000, Jaeger on :16686
 
 Tracing is an optional dependency. With no collector configured it cleanly no-ops, because observability tooling must never be able to take down the thing it observes.
 
+### Proving the model actually ran
+
+Every model call records the model, its token counts and its cost, so the dashboard header shows **LIVE or OFFLINE** and the cost panel names the exact OpenRouter model and its real spend. Offline, nothing leaves the process and cost stays $0, which is itself the evidence of which path ran. Retries are bounded and the daily budget caps spend, so nothing loops forever; when confidence is still too low, the decision **fails to a human** rather than guessing. The dashboard surfaces the held-for-human count alongside the grounding and fallback numbers, so how often the platform defers to a person is a figure, not a claim.
+
 ### Debugging this live in production
 
 1. `GET /traces/{id}/why` returns two views of one run: `plain` for whoever is asking, and the rule-and-values version for whoever is fixing it. They come from the same trace, so they cannot disagree.
@@ -127,4 +131,4 @@ Then, in order: SQLite → BigQuery (the implementation exists, `warehouse_bigqu
 - Pseudonymisation before the LLM call is data *minimisation*, not GDPR anonymisation: the mapping lives in memory for the run, and metrics could in principle be linkable.
 - The OpenTelemetry path is verified (spans nest correctly under one trace per run, ids land on decision rows, and it no-ops without a collector), but **`docker compose up` has not been executed** - no Docker daemon on the build machine. The compose file parses and the Dockerfile's inputs all exist; the image build itself is unproven.
 
-`pytest -q` → 81 tests, weighted to failure paths. `python cli.py eval` → golden eval gate.
+`pytest -q` → 91 tests, weighted to failure paths (dedupe, degraded fallback, grounding rejection, circuit breaking, idempotent writes, the platform self-audit). The golden eval samples each case several times and gates on consistency, because the model is non-deterministic on ambiguous inputs and a single run measures luck. `python cli.py eval` → golden eval gate. Green in CI on Python 3.11/3.12/3.13.
