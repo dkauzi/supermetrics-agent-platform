@@ -4,7 +4,7 @@
 [![tests](https://img.shields.io/badge/tests-91%20passing-brightgreen)](tests/test_platform.py)
 [![eval gate](https://img.shields.io/badge/golden%20eval-gated%20in%20CI-blue)](tests/golden/run_eval.py)
 
-**[Overview and demo →](https://dkauzi.github.io/supermetrics-agent-platform/)** · [Architecture](docs/ARCHITECTURE.md) · [Engineering notes](docs/ENGINEERING_NOTES.md)
+**[Overview and demo →](https://dkauzi.github.io/supermetrics-agent-platform/)** · [At a glance](https://dkauzi.github.io/supermetrics-agent-platform/playbook.html) · [Architecture](docs/ARCHITECTURE.md) · [Engineering notes](docs/ENGINEERING_NOTES.md)
 
 A customer's health score drops as their renewal nears. This works out why they might leave, writes the finding to Salesforce and Gainsight, alerts the account owner in Slack with the evidence, and logs every step so anyone can ask *"why did it do that?"* and get a plain-English answer in seconds. Built as the first agent on a shared platform, not a standalone script: the brief is one agent, the role owns the layer many agents plug into. Three agents run on it today.
 

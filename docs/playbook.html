@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Renewal Risk Platform — At a glance</title>
+<style>
+  :root{
+    --paper:#fbfbfa; --panel:#ffffff; --ink:#1a1a18; --muted:#6b6b66; --line:#e6e4df;
+    --accent:#b8492f; --accent-soft:#f3e4df;
+    --run:#2f8f5b; --send:#3f63b5; --ops:#7c4fb5; --gold:#8f6a12;
+    --run-bg:#e7f3ec; --send-bg:#e7edfb; --ops-bg:#efe8fb; --gold-bg:#f9f1d8;
+    --code:#f5f3ef;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#141410; --panel:#1c1c17; --ink:#ecebe4; --muted:#9a968c; --line:#2d2c26;
+      --accent:#e07a5f; --accent-soft:#33231d;
+      --run:#5cba86; --send:#83a1e6; --ops:#b78ef2; --gold:#d9ad3e;
+      --run-bg:#152a20; --send-bg:#182338; --ops-bg:#241a37; --gold-bg:#2a2410;
+      --code:#211f1a;
+    }
+  }
+  :root[data-theme="light"]{
+    --paper:#fbfbfa; --panel:#ffffff; --ink:#1a1a18; --muted:#6b6b66; --line:#e6e4df;
+    --accent:#b8492f; --accent-soft:#f3e4df;
+    --run:#2f8f5b; --send:#3f63b5; --ops:#7c4fb5; --gold:#8f6a12;
+    --run-bg:#e7f3ec; --send-bg:#e7edfb; --ops-bg:#efe8fb; --gold-bg:#f9f1d8;
+    --code:#f5f3ef;
+  }
+  :root[data-theme="dark"]{
+    --paper:#141410; --panel:#1c1c17; --ink:#ecebe4; --muted:#9a968c; --line:#2d2c26;
+    --accent:#e07a5f; --accent-soft:#33231d;
+    --run:#5cba86; --send:#83a1e6; --ops:#b78ef2; --gold:#d9ad3e;
+    --run-bg:#152a20; --send-bg:#182338; --ops-bg:#241a37; --gold-bg:#2a2410;
+    --code:#211f1a;
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font:16px/1.6 ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:900px;margin:0 auto;padding:38px 22px 90px}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,"Cascadia Code",monospace}
+
+  nav{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:30px}
+  .navlink{color:var(--muted);text-decoration:none;font-size:13px;font-weight:620;
+    padding:6px 12px;border:1px solid var(--line);border-radius:7px;background:var(--panel)}
+  .navlink:hover{color:var(--accent);border-color:var(--accent)}
+
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:var(--accent)}
+  h1{font-size:31px;line-height:1.14;letter-spacing:-.02em;margin:9px 0 10px;font-weight:680;text-wrap:balance}
+  .thesis{font-size:18px;color:var(--muted);margin:0 0 18px;line-height:1.5;max-width:60ch}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .chip{font-size:12.5px;font-weight:620;padding:4px 11px;border-radius:999px;
+    border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+  .chip b{color:var(--accent)}
+
+  section{margin-top:40px;padding-top:22px;border-top:1px solid var(--line)}
+  h2{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 15px}
+
+  .principles{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+  .p{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:15px 17px}
+  .p .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:8px}
+  .p b{font-size:15.5px}
+  .p p{margin:7px 0 0;font-size:13.5px;color:var(--muted)}
+
+  .grp{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:14px;background:var(--panel)}
+  .grp-h{display:flex;align-items:center;gap:10px;padding:11px 15px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .tag{font-size:11px;font-weight:750;letter-spacing:.05em;text-transform:uppercase;padding:3px 9px;border-radius:6px}
+  .grp-h .desc{font-size:13px;color:var(--muted)}
+  .cmds{padding:6px 0;border-left:3px solid var(--rail)}
+  .cmd{display:block;padding:6px 15px;font-size:13.5px;line-height:1.5;overflow-x:auto}
+  .cmd .c{color:var(--ink);font-weight:560;white-space:pre;font-family:ui-monospace,Menlo,monospace}
+  .cmd .n{color:var(--muted);font-family:ui-monospace,Menlo,monospace}
+  .cmd .k{color:var(--rail);font-weight:680}
+
+  .feature{background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));
+    border-radius:13px;padding:19px 21px}
+  .feature h3{margin:0 0 4px;font-size:17px;letter-spacing:-.01em}
+  .feature .lead{font-size:13.5px;color:var(--muted);margin:0 0 14px}
+  ol.steps{margin:0;padding:0;list-style:none;counter-reset:s;display:grid;gap:9px}
+  ol.steps li{counter-increment:s;position:relative;padding-left:34px;font-size:13.5px;line-height:1.55}
+  ol.steps li::before{content:counter(s);position:absolute;left:0;top:0;width:22px;height:22px;border-radius:50%;
+    background:var(--accent);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center}
+  ol.steps code{background:var(--code);padding:1px 6px;border-radius:5px;font-size:12.5px;font-family:ui-monospace,Menlo,monospace}
+
+  .panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:11px}
+  .panel{border:1px solid var(--line);border-radius:11px;padding:13px 15px;background:var(--panel);border-left:3px solid var(--rail)}
+  .panel b{font-size:14.5px}
+  .panel p{margin:6px 0 0;font-size:13px;color:var(--muted);line-height:1.5}
+
+  .scroll{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:520px}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+    font-weight:700;padding:0 12px 9px 0;border-bottom:1px solid var(--line)}
+  td{padding:11px 12px 11px 0;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td .flag{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--ink);font-weight:600}
+  .role{font-size:10.5px;font-weight:750;letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:5px}
+  .role.fn{color:var(--run);background:var(--run-bg)}
+  .role.meta{color:var(--muted);background:var(--code)}
+
+  .findings{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+  .f{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:15px 17px}
+  .f b{font-size:14.5px;line-height:1.3;display:block;margin-bottom:6px}
+  .f p{margin:0;font-size:13px;color:var(--muted);line-height:1.5}
+
+  .callout{background:var(--gold-bg);border:1px solid color-mix(in srgb,var(--gold) 40%,var(--line));border-radius:12px;padding:16px 19px}
+  .callout ul{margin:0;padding-left:20px;display:grid;gap:7px}
+  .callout li{font-size:13.5px;line-height:1.5}
+  .callout code{background:color-mix(in srgb,var(--gold) 14%,transparent);padding:1px 6px;border-radius:5px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+  .callout b{color:var(--gold)}
+
+  .foot{margin-top:34px;font-size:12.5px;color:var(--muted);line-height:1.6}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav>
+    <a class="navlink" href="index.html">← Overview</a>
+    <a class="navlink" href="dashboard.html">Dashboard</a>
+    <a class="navlink" href="https://github.com/dkauzi/supermetrics-agent-platform">Source</a>
+    <a class="navlink" href="ARCHITECTURE.md">Architecture</a>
+  </nav>
+
+  <header>
+    <div class="eyebrow">At a glance</div>
+    <h1>Renewal Risk Analyser &amp; Router</h1>
+    <p class="thesis">One agent was the brief. The platform many agents plug into is the job.
+      Everything below runs locally, from the repo.</p>
+    <div class="meta">
+      <span class="chip">3 agents on one bus</span>
+      <span class="chip"><b>91</b> tests, eval-gated in CI</span>
+      <span class="chip">a live run spends <b>~$0.31</b> of the $50</span>
+      <span class="chip">one event → <b>many</b> agents</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>What it optimises for</h2>
+    <div class="principles">
+      <div class="p"><b><span class="dot" style="background:var(--run)"></span>Nothing trusted unchecked</b>
+        <p>Every figure the model cites is verified against real data. Invented numbers get the answer discarded.</p></div>
+      <div class="p"><b><span class="dot" style="background:var(--send)"></span>Explainable to a non-engineer</b>
+        <p>Any run reads back in plain English in seconds, from the same trace an engineer debugs.</p></div>
+      <div class="p"><b><span class="dot" style="background:var(--accent)"></span>It fails to a human</b>
+        <p>Low confidence, model down, or budget hit: work routes to a person. It never silently stops.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Run it &nbsp;·&nbsp; use <span class="mono">.venv/bin/python</span> (or activate the venv first)</h2>
+
+    <div class="grp">
+      <div class="grp-h"><span class="tag" style="color:#fff;background:var(--run)">Run</span>
+        <span class="desc">the supplied payload — 3 accounts, 3 drivers, 1 deduped redelivery — then every failure path</span></div>
+      <div class="cmds" style="--rail:var(--run)">
+        <span class="cmd"><span class="c">.venv/bin/python <span class="k">runner.py</span></span></span>
+      </div>
+    </div>
+
+    <div class="grp">
+      <div class="grp-h"><span class="tag" style="color:#fff;background:var(--send)">Send</span>
+        <span class="desc">one event → whichever agents subscribe. The source must match the payload's shape.</span></div>
+      <div class="cmds" style="--rail:var(--send)">
+        <span class="cmd"><span class="c">.venv/bin/python cli.py <span class="k">send gainsight</span>   samples/webhook_health_score_drop.json</span>
+          <span class="n"># health_score.dropped → renewal_risk</span></span>
+        <span class="cmd"><span class="c">.venv/bin/python cli.py <span class="k">send salesforce</span>  samples/webhook_renewal_approaching.json</span>
+          <span class="n"># renewal.approaching → renewal_risk</span></span>
+        <span class="cmd"><span class="c">.venv/bin/python cli.py <span class="k">send zendesk</span>     samples/webhook_support_spike.json</span>
+          <span class="n"># support.ticket_spike → support_escalation</span></span>
+        <span class="cmd"><span class="c">.venv/bin/python cli.py <span class="k">send gainsight</span>   samples/webhook_low_risk.json</span>
+          <span class="n"># low risk → skipped / held (the negative path)</span></span>
+      </div>
+    </div>
+
+    <div class="grp">
+      <div class="grp-h"><span class="tag" style="color:#fff;background:var(--ops)">Operate</span>
+        <span class="desc">explain a run, audit the platform, gate a prompt change, open the dashboard</span></div>
+      <div class="cmds" style="--rail:var(--ops)">
+        <span class="cmd"><span class="c">.venv/bin/python cli.py <span class="k">why</span> &lt;trace_id&gt;</span>
+          <span class="n"># plain English + rules and values, from one trace</span></span>
+        <span class="cmd"><span class="c">.venv/bin/python cli.py <span class="k">audit</span></span>
+          <span class="n"># platform self-audit · exit 0 = no criticals</span></span>
+        <span class="cmd"><span class="c">.venv/bin/python cli.py <span class="k">eval</span> --samples 3</span>
+          <span class="n"># golden eval, gates on consistency not one lucky run</span></span>
+        <span class="cmd"><span class="c">.venv/bin/uvicorn <span class="k">app:app</span></span>
+          <span class="n"># dashboard on http://127.0.0.1:8000</span></span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Onboarding an agent</h2>
+    <div class="feature">
+      <h3>One command, and a second agent fires on the same event</h3>
+      <p class="lead">Adding an agent is two files: its logic and one registry entry. Nothing that already exists changes.</p>
+      <ol class="steps">
+        <li><b>Onboard it.</b> <code>cli.py new-agent expansion_signal --owner denis --description "…" --subscribes-to health_score.dropped --tools salesforce gainsight slack</code></li>
+        <li><b>It joins the registry.</b> <code>cli.py registry</code> shows it owned, scoped to those tools, with a review date.</li>
+        <li><b>One event fans out.</b> a <code>health_score.dropped</code> event now runs <b>renewal_risk</b> and <b>expansion_signal</b> as two independent, fully-traced runs.</li>
+        <li><b>It inherited everything.</b> tracing, retries, idempotency, guardrails and tool permissions — written nowhere in the agent itself.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <h2>What you see on the dashboard</h2>
+    <div class="panels">
+      <div class="panel" style="--rail:var(--accent)"><b>Why did it do that?</b>
+        <p>Plain English for whoever asks, rules and values one click down. Same trace, so they can't disagree.</p></div>
+      <div class="panel" style="--rail:var(--ops)"><b>Platform health check</b>
+        <p>Seven self-audit checks, each with a correct answer and its own fix. The same checks gate CI.</p></div>
+      <div class="panel" style="--rail:var(--send)"><b>Decision log</b>
+        <p>Every rule every agent fired, newest first, each click-through to full reasoning.</p></div>
+      <div class="panel" style="--rail:var(--run)"><b>Reviews &amp; owners</b>
+        <p>Per-agent last-checked and next-due. Overdue agents get nudged to their owner in Slack.</p></div>
+      <div class="panel" style="--rail:var(--gold)"><b>AI model, and proof it ran</b>
+        <p>A LIVE / OFFLINE badge, the exact model, tokens and real dollars. Offline stays $0, which is the proof of which path ran.</p></div>
+      <div class="panel" style="--rail:var(--accent)"><b>Guardrails &amp; fail-to-human</b>
+        <p>Ungrounded citations rejected, fallback count, and how often a decision was held for a person.</p></div>
+      <div class="panel" style="--rail:var(--run)"><b>Automated tests</b>
+        <p>91 tests, collected live and grouped by what they cover. A number, not a claim.</p></div>
+      <div class="panel" style="--rail:var(--ops)"><b>Learning loop</b>
+        <p>Human verdicts feed per-driver precision; anything below the floor is auto-flagged for review.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The new-agent contract &nbsp;·&nbsp; wiring vs paperwork</h2>
+    <div class="scroll">
+    <table>
+      <tr><th style="width:22%">Flag</th><th style="width:20%">Role</th><th>What it does</th></tr>
+      <tr><td><span class="flag">name</span></td><td><span class="role fn">functional</span></td>
+        <td>The id and module name. Must be import-safe (<span class="mono">expansion_signal</span>, not "Bad Name").</td></tr>
+      <tr><td><span class="flag">--subscribes-to</span></td><td><span class="role fn">functional</span></td>
+        <td>Event types it listens for. This is the wiring — the bus fans events out by this list. Must be dotted.</td></tr>
+      <tr><td><span class="flag">--tools</span></td><td><span class="role fn">functional</span></td>
+        <td>Vendor access granted, and enforced. It can touch only these, nothing else.</td></tr>
+      <tr><td><span class="flag">--owner</span></td><td><span class="role meta">governance</span></td>
+        <td>Who is accountable / who gets paged. Required — nothing runs unowned.</td></tr>
+      <tr><td><span class="flag">--description</span></td><td><span class="role meta">metadata</span></td>
+        <td>One-line "what is this for." Shown in the registry and dashboard; no effect on behaviour.</td></tr>
+      <tr><td><span class="flag">--team</span></td><td><span class="role meta">metadata</span></td>
+        <td>Owning team label for grouping. Defaults to <span class="mono">gtm-ai</span>.</td></tr>
+    </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Three things worth a closer look</h2>
+    <div class="findings">
+      <div class="f"><b>Hallucination is checkable by code</b>
+        <p>Evidence is metric/value pairs, verified against fetched data — deterministically, no second model judging the first. Grounding is 100% because ungrounded output never survives.</p></div>
+      <div class="f"><b>A single-run eval measures luck</b>
+        <p>On an ambiguous case the model gave a different confident answer on a rerun. The eval now samples each case several times and gates on consistency.</p></div>
+      <div class="f"><b>The QA agent has no LLM, on purpose</b>
+        <p>Owner present, reviews on time, gate green: each has a correct answer. A model in the safety path makes a reliable result probabilistic and bills for it.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Running it — good to know</h2>
+    <div class="callout">
+      <ul>
+        <li><b>Interpreter.</b> Use <code>.venv/bin/python</code>, or <code>source .venv/bin/activate</code> first. System <code>python3</code> has no dependencies installed.</li>
+        <li><b>Source matches shape.</b> A source that does not match the payload dead-letters <i>with a reason</i> — the negative path working, not a crash.</li>
+        <li><b>Idempotency.</b> The same <code>event_id</code> twice is deduped. Re-fire with <code>rm data/platform.db</code> or a fresh id.</li>
+        <li><b>Live vs offline.</b> By default it calls the model and records real spend. Prefix <code>LLM_MODE=offline</code> to run free on the deterministic analyser.</li>
+        <li><b>The audit may read WARN, by design.</b> The health check flags an agent whose review is overdue — that is the review-cadence check doing its job, and it names the fix.</li>
+      </ul>
+    </div>
+  </section>
+
+  <p class="foot">
+    Honest limits: vendor clients are mocks over a fixture set; the BigQuery adapter's SQL is tested but never
+    run against a live dataset; pseudonymising before the model call is minimisation, not anonymisation.
+    Everything else executes — 91 tests, the eval gate and the self-audit, green in CI on three Python versions.
+    &nbsp;·&nbsp; <a href="index.html">Full overview</a> &nbsp;·&nbsp; <a href="dashboard.html">Live dashboard snapshot</a>
+  </p>
+
+</div>
+</body>
+</html>
