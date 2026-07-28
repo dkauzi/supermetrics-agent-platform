@@ -31,9 +31,11 @@ T = TypeVar("T", bound=BaseModel)
 # Approximate USD per 1M tokens. Used for budget accounting and the cost shown in
 # the dashboard. Override in config under llm.pricing when vendor prices move.
 DEFAULT_PRICING: dict[str, tuple[float, float]] = {
+    "anthropic/claude-haiku-4.5": (1.00, 5.00),
     "anthropic/claude-sonnet-4.5": (3.00, 15.00),
+    "openai/gpt-4o": (2.50, 10.00),
     "openai/gpt-4o-mini": (0.15, 0.60),
-    "google/gemini-2.0-flash-001": (0.10, 0.40),
+    "google/gemini-2.5-flash": (0.30, 2.50),
 }
 FALLBACK_PRICE = (1.00, 3.00)
 

@@ -64,7 +64,14 @@ def _score_case(analysis, meta, case: dict[str, Any], facts: dict[str, Any]) -> 
     # Same grounding definition the production verifier uses. Reimplementing it
     # here previously reported 62% on output production had accepted as valid.
     grounded = all(claim_is_grounded(item, facts) for item in analysis.evidence)
-    citation_ok = bool(cited & set(case.get("must_cite_any", []))) if case.get("must_cite_any") else True
+
+    # A correct abstention is the whole point of the ambiguous case, and you cannot
+    # cite evidence for "I don't know". So must_cite_any does not apply when the
+    # model rightly declines to name a driver; requiring a citation there made a
+    # correct "unknown" unscoreable and understated every model's consistency.
+    correct_abstention = case["expected_driver"] == "unknown" and analysis.driver == "unknown"
+    citation_ok = True if correct_abstention else (
+        bool(cited & set(case.get("must_cite_any", []))) if case.get("must_cite_any") else True)
 
     # For the ambiguous case, a confident wrong answer is worse than a hedge.
     confidence_ok = True

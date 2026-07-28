@@ -32,6 +32,24 @@ Rendered from [`diagrams/cloud-architecture.mmd`](diagrams/cloud-architecture.mm
 | **Cloud Trace, *and* BigQuery traces** | Two systems because they answer two questions. Cloud Trace ingests the OTel spans and answers "where did the time go"; the `agent_run_steps` table answers "why did this agent conclude that". Using Cloud Trace for the second job fails: spans are sampled, so you lose the one run someone asks about, and they expire. Each carries the other's ids. |
 | **OpenRouter, not a direct model vendor** | One integration for many models, so a deprecation or an outage is a config edit to the fallback chain. The trade-off is a third party in the data path, which is why identifiers are stripped before the call. |
 
+## Model selection (measured)
+
+The model chain is config, and the golden eval turns it into a measured choice rather than a preference. The same eval, run across five OpenRouter models (8 cases; the two leaders re-run at 30 samples per case for stability):
+
+| Model | Driver accuracy | Consistency | Grounding | ~cost / analysis |
+|---|---|---|---|---|
+| **anthropic/claude-haiku-4.5** *(champion)* | 100% | 100% | 100% | ~$0.004 |
+| anthropic/claude-sonnet-4.5 *(fallback)* | 95% | 75% | 100% | ~$0.015 |
+| google/gemini-2.5-flash | 75% | 100% | 100% | ~$0.003 |
+| openai/gpt-4o | 75% | 88% | 100% | ~$0.002 |
+| openai/gpt-4o-mini | 72% | 62% | 100% | ~$0.0004 |
+
+The result was not the obvious one. **claude-haiku-4.5 matched or beat the larger sonnet-4.5 on both accuracy and consistency, at roughly a quarter of the cost**, and held 100% consistency across 240 runs; sonnet was measurably less stable, flipping drivers on two of the supplied accounts between runs. So haiku-4.5 is champion and sonnet-4.5 the capable fallback, chosen on evidence rather than reputation. Grounding is 100% for every model because the grounding check is deterministic and model-agnostic: the guardrail does not depend on which model produced the claim.
+
+`gpt-4o-mini` is by far the cheapest but the least consistent, which is exactly the shape of a low-severity tier: a cheap model where a wrong answer is cheap, the strong one reserved for where it is not.
+
+Two honest notes. The set is eight cases; re-running the two leaders at 30 samples is what makes the gap trustworthy rather than one lucky run, and is the same reason the eval gates on consistency, not a single pass. And the bake-off surfaced two real bugs, now fixed: the fallback chain named a Gemini model that 404s on OpenRouter, and the eval scored a correct abstention (`unknown`, which cites nothing) as a miss because the ambiguous case demanded a citation.
+
 ## BigQuery layout
 
 ![BigQuery schema](diagrams/bigquery-schema.svg)

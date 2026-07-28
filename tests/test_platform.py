@@ -770,6 +770,29 @@ def test_notify_owner_messages_the_owner_and_404s_on_unknown_agent():
     assert result["agent"] == "renewal_risk"
 
 
+def test_correct_abstention_passes_despite_must_cite_any():
+    """A correct 'unknown' must score as passed even though it cites nothing.
+
+    The ambiguous case sets must_cite_any: [health_score], but you cannot cite
+    evidence for "I don't know". Requiring it made a correct abstention unscoreable
+    and understated every model's consistency until _score_case was fixed.
+    """
+    from types import SimpleNamespace
+    from tests.golden.run_eval import _score_case
+
+    case = {"id": "ambiguous_must_not_guess", "expected_driver": "unknown",
+            "must_cite_any": ["health_score"], "expect_low_confidence": True}
+    meta = SimpleNamespace(method="llm", cost_usd=0.0)
+
+    abstained = SimpleNamespace(driver="unknown", confidence=0.2, evidence=[])
+    assert _score_case(abstained, meta, case, {"health_score": 50})["passed"] is True
+
+    # A confident guess on the same case must still fail, so the fix does not
+    # turn the abstention gate into a free pass.
+    guessed = SimpleNamespace(driver="adoption_decline", confidence=0.9, evidence=[])
+    assert _score_case(guessed, meta, case, {"health_score": 50})["passed"] is False
+
+
 def test_healthz_reports_tracing_state_honestly():
     from fastapi.testclient import TestClient
     import app

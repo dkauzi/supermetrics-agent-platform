@@ -20,7 +20,11 @@ llm:
   base_url: https://openrouter.ai/api/v1
   # Tried in order. A model being deprecated or rate-limited by the vendor is a
   # config change here, not an agent code change.
+  # Order is a measured choice, not a hunch: the golden eval scores accuracy and
+  # consistency per model (see docs/ARCHITECTURE.md). haiku-4.5 led both at ~1/4
+  # sonnet's cost, so it is champion; sonnet is the capable fallback.
   model_chain:
+    - anthropic/claude-haiku-4.5
     - anthropic/claude-sonnet-4.5
     - openai/gpt-4o-mini
     - google/gemini-2.5-flash
