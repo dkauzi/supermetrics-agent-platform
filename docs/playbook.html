@@ -133,8 +133,8 @@
       Everything below runs locally, from the repo.</p>
     <div class="meta">
       <span class="chip">3 agents on one bus</span>
-      <span class="chip"><b>91</b> tests, eval-gated in CI</span>
-      <span class="chip">a live run spends <b>~$0.31</b> of the $50</span>
+      <span class="chip"><b>92</b> tests, eval-gated in CI</span>
+      <span class="chip">champion <b>claude-haiku-4.5</b>, chosen on the eval</span>
       <span class="chip">one event → <b>many</b> agents</span>
     </div>
   </header>
@@ -219,11 +219,11 @@
       <div class="panel" style="--rail:var(--run)"><b>Reviews &amp; owners</b>
         <p>Per-agent last-checked and next-due. Overdue agents get nudged to their owner in Slack.</p></div>
       <div class="panel" style="--rail:var(--gold)"><b>AI model, and proof it ran</b>
-        <p>A LIVE / OFFLINE badge, the exact model, tokens and real dollars. Offline stays $0, which is the proof of which path ran.</p></div>
+        <p>Champion <code>claude-haiku-4.5</code>, chosen by a bake-off over the larger sonnet-4.5. A LIVE / OFFLINE badge names the exact model, tokens and real dollars. Offline stays $0, which is the proof of which path ran.</p></div>
       <div class="panel" style="--rail:var(--accent)"><b>Guardrails &amp; fail-to-human</b>
         <p>Ungrounded citations rejected, fallback count, and how often a decision was held for a person.</p></div>
       <div class="panel" style="--rail:var(--run)"><b>Automated tests</b>
-        <p>91 tests, collected live and grouped by what they cover. A number, not a claim.</p></div>
+        <p>92 tests, collected live and grouped by what they cover. A number, not a claim.</p></div>
       <div class="panel" style="--rail:var(--ops)"><b>Learning loop</b>
         <p>Human verdicts feed per-driver precision; anything below the floor is auto-flagged for review.</p></div>
     </div>
@@ -251,12 +251,14 @@
   </section>
 
   <section>
-    <h2>Three things worth a closer look</h2>
+    <h2>Worth a closer look</h2>
     <div class="findings">
+      <div class="f"><b>The biggest model wasn't the best</b>
+        <p>A bake-off over five models put <code>claude-haiku-4.5</code> ahead of the larger sonnet-4.5 on accuracy and consistency at ~¼ the cost, stable across 240 runs. The champion is chosen on evidence, not reputation.</p></div>
       <div class="f"><b>Hallucination is checkable by code</b>
         <p>Evidence is metric/value pairs, verified against fetched data — deterministically, no second model judging the first. Grounding is 100% because ungrounded output never survives.</p></div>
       <div class="f"><b>A single-run eval measures luck</b>
-        <p>On an ambiguous case the model gave a different confident answer on a rerun. The eval now samples each case several times and gates on consistency.</p></div>
+        <p>Models flip drivers on ambiguous accounts between runs, so the eval samples each case many times and gates on consistency, not a single lucky pass.</p></div>
       <div class="f"><b>The QA agent has no LLM, on purpose</b>
         <p>Owner present, reviews on time, gate green: each has a correct answer. A model in the safety path makes a reliable result probabilistic and bills for it.</p></div>
     </div>

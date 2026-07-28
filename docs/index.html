@@ -474,10 +474,14 @@ Platform audit: WARN  (0 critical, 2 warnings)
     platform exists to prevent.</p>
     <p><b>The OpenRouter grant is tracked as a budget, not an allowance.</b> Spend per run,
     per agent and against the $50 is on the dashboard's cost panel, because knowing what an
-    agent costs and what remains is part of operating one. A full analysis is roughly a cent;
-    a live golden-eval sweep across all cases is about twelve. The platform stops paying for
-    the model at 90% of the daily budget and routes runs to a human rather than either
-    overspending or silently dropping alerts.</p>
+    agent costs and what remains is part of operating one. The model itself is chosen on
+    evidence: a bake-off across five models on the golden eval put <code>claude-haiku-4.5</code>
+    ahead of the larger <code>sonnet-4.5</code> on accuracy <i>and</i> consistency at roughly a
+    quarter of the cost, so haiku is champion and sonnet the capable fallback (the table is in
+    <a href="https://github.com/dkauzi/supermetrics-agent-platform/blob/main/docs/ARCHITECTURE.md">ARCHITECTURE.md</a>).
+    A full analysis now costs well under a cent. The platform stops paying for the model at 90%
+    of the daily budget and routes runs to a human rather than either overspending or silently
+    dropping alerts.</p>
     <p>The panel also shows whether each run was <b>live or offline</b> and names the <b>exact
     OpenRouter model, the token counts and the real dollars</b> spent, so which inference path
     ran is visible rather than asserted: live shows real spend on a named model, offline stays
