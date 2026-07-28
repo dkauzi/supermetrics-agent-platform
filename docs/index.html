@@ -371,7 +371,7 @@ cp .env.example .env          # optional: add OPENROUTER_API_KEY
 
       <tr><td><b>Shared functions, fixed once</b></td>
           <td>No agent implements retry, cost accounting, schema validation or grounding itself. When two definitions of "grounded" drifted apart, that was a bug, and it was fixed by deleting one.</td>
-          <td><code>python -m pytest -q</code><br><span class="muted small">91 tests, weighted to failure paths</span></td></tr>
+          <td><code>python -m pytest -q</code><br><span class="muted small">92 tests, weighted to failure paths</span></td></tr>
 
       <tr><td><b>Observability: every run logged and queryable</b></td>
           <td>One trace per run, one row per step, rendered for two readers: plain English for whoever is asking, rules and values for whoever is fixing. Same trace, so they cannot disagree. The dashboard also carries a live decision log of every rule the agents fired.</td>
@@ -505,7 +505,7 @@ Platform audit: WARN  (0 critical, 2 warnings)
       <li>Pseudonymising identifiers before the model call is data <b>minimisation, not
       anonymisation</b>.</li>
     </ul>
-    <p class="muted small">Everything else here executes: <b>91 tests</b>, the golden eval gate,
+    <p class="muted small">Everything else here executes: <b>92 tests</b>, the golden eval gate,
     and the platform's own self-audit, all green in CI on three Python versions.</p>
   </section>
 

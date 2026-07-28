@@ -1,7 +1,7 @@
 # Renewal Risk Analyser and Router
 
 [![CI](https://github.com/dkauzi/supermetrics-agent-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/dkauzi/supermetrics-agent-platform/actions/workflows/ci.yml)
-[![tests](https://img.shields.io/badge/tests-91%20passing-brightgreen)](tests/test_platform.py)
+[![tests](https://img.shields.io/badge/tests-92%20passing-brightgreen)](tests/test_platform.py)
 [![eval gate](https://img.shields.io/badge/golden%20eval-gated%20in%20CI-blue)](tests/golden/run_eval.py)
 
 **[Overview and demo →](https://dkauzi.github.io/supermetrics-agent-platform/)** · [At a glance](https://dkauzi.github.io/supermetrics-agent-platform/playbook.html) · [Architecture](docs/ARCHITECTURE.md) · [Engineering notes](docs/ENGINEERING_NOTES.md)
@@ -25,4 +25,4 @@ cp .env.example .env          # optional: add OPENROUTER_API_KEY
 
 **First change at 10x.** Make ingestion asynchronous: validate, persist and enqueue, with workers consuming. Today the webhook processes inline, which is fine at this volume and wrong at ten times it. That is the failure that bites first, before cost or storage.
 
-<sub>91 tests weighted to failure paths, plus a golden eval gate, green in CI. Mocked vendor clients; the BigQuery adapter's SQL is tested but has never run against a live dataset.</sub>
+<sub>92 tests weighted to failure paths, plus a golden eval gate, green in CI. Mocked vendor clients; the BigQuery adapter's SQL is tested but has never run against a live dataset.</sub>
